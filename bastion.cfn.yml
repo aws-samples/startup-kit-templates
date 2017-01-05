@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+# Bastion stack creation prerequisite:  first create an EC2 key pair and a VPC stack.  
+# For details about how to connect to a Linux instance in a private subnet via the
+# bastion, see the following AWS blog post:
+# https://aws.amazon.com/blogs/security/securely-connect-to-linux-instances-running-in-a-private-amazon-vpc/
+
+Parameters:
+
+  NetworkStackName:
+    Description: Active CloudFormation stack containing VPC resources.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  KeyName:
+    Description: EC2 key pair name for bastion host SSH access
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "[\\x20-\\x7E]*"
+    ConstraintDescription: Key pair name can contain only ASCII characters.
+
+Mappings:
+
+  AMIMap:  # Amazon Linux AMI
+    ap-northeast-1:
+      AMI: ami-1a15c77b
+    ap-northeast-2:
+      AMI: ami-a04297ce
+    ap-south-1:
+      AMI: ami-cacbbea5
+    ap-southeast-1:
+      AMI: ami-7243e611
+    ap-southeast-2:
+      AMI: ami-55d4e436
+    eu-west-1:
+      AMI: ami-d41d58a7
+    eu-central-1:
+      AMI: ami-0044b96f
+    sa-east-1:
+      AMI: ami-b777e4db
+    us-east-1:
+      AMI: ami-c481fad3
+    us-west-1:
+      AMI: ami-de347abe
+    us-west-2:
+      AMI: ami-b04e92d0
+
+Resources:
+
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      ImageId: !FindInMap [AMIMap, !Ref "AWS::Region", AMI]
+      SubnetId: !ImportValue
+        "Fn::Sub": "${NetworkStackName}-PublicSubnet1ID"
+      SecurityGroupIds:
+      - !ImportValue
+        "Fn::Sub": "${NetworkStackName}-BastionGroupID"
+      Tags:
+        -
+          Key: Name
+          Value: startup-kit-bastion
+
+  BastionEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref BastionHost
+
+Outputs:
+
+  BastionIP:
+    Description: EIP for bastion host
+    Value: !Ref BastionEIP
+    Export:
+      Name: !Sub "${AWS::StackName}-BastionEIP"
+
+
