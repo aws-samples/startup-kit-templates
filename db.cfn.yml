@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+# Database stack creation prerequisite:  first create a VPC stack.
+Parameters:
+
+  NetworkStackName:
+    Description: Name of an active CloudFormation stack that contains networking resources.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  DatabaseUser:
+    Default: startupadmin
+    NoEcho: 'true'
+    Type: String
+    Description: Database admin account name
+    MinLength: 5
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters.
+
+  DatabasePassword:
+    Default: 0bee082a464
+    NoEcho: 'true'
+    Type: String
+    Description: Database admin account password
+    MinLength: 6
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters.
+
+  DatabaseName:
+    Default: StartupDB
+    Type: String
+    Description: Database name
+    MinLength: 1
+    MaxLength: 30
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters.
+    
+  DatabaseSize:
+    Default: 5
+    Type: String
+    Description: Database storage size in gigabytes (GB)
+    MinLength: 1
+    AllowedPattern: "[5-9][0-9]*"
+    ConstraintDescription: Enter a size of at least 5 GB
+    
+  DatabaseEngine:
+    Default: mysql
+    Type: String
+    Description: Database engine, MySQL or PostgreSQL
+    ConstraintDescription: Choose an engine from the drop down
+    AllowedValues: 
+      - mysql
+      - postgres
+    
+  DatabaseInstanceClass:
+    Default: db.t2.micro
+    Type: String
+    Description: Database instance class, e.g. db.t2.micro (free tier)
+    ConstraintDescription: Choose an instance class from the drop down
+    AllowedValues: 
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m4.4xlarge
+      - db.m4.10xlarge
+      - db.r3.large
+      - db.r3.xlarge
+      - db.r3.2xlarge
+      - db.r3.4xlarge
+      - db.r3.8xlarge
+      
+  EnvironmentName:
+    Description: Environment name, either dev or prod.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedValues: 
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod.
+    
+
+Conditions: 
+
+  CreateProdEnv: !Equals [ !Ref EnvironmentName, prod ]
+  
+      
+Resources:
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups:
+      - !ImportValue
+          "Fn::Sub": "${NetworkStackName}-DatabaseGroupID"
+      Engine: !Ref DatabaseEngine
+      DBName: !Ref DatabaseName
+      MasterUsername: !Ref DatabaseUser
+      MasterUserPassword: !Ref DatabasePassword
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      AllocatedStorage: !Ref DatabaseSize
+      StorageType: gp2
+      MultiAZ: !If [ CreateProdEnv, 'true', 'false' ]
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS DB subnet group
+      SubnetIds:
+      - !ImportValue
+          "Fn::Sub": "${NetworkStackName}-PrivateSubnet1ID"
+      - !ImportValue
+          "Fn::Sub": "${NetworkStackName}-PrivateSubnet2ID"
+
+Outputs:
+
+  RdsDbId:
+    Description: RDS Database ID
+    Value: !Ref Database
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseID"
+
+  RdsDbURL:
+    Description: RDS Database URL
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseURL"
+
+  DbUser:
+    Description: RDS Database admin account user
+    Value: !Ref DatabaseUser
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseUser"
+
+  DbPassword:
+    Description: RDS Database admin account password
+    Value: !Ref DatabasePassword
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabasePassword"
+    
+    
