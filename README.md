@@ -1,25 +1,24 @@
 # startup-kit-templates
 
-The AWS Startup Kit CloudFormation templates create stacks to support 
-well-architected workloads on AWS. Components include a VPC, a bastion 
-host, and an (optional) relational database.  
+The AWS Startup Kit CloudFormation templates create stacks to support well-architected
+workloads on AWS. Components include a VPC, a bastion host, and an (optional) relational
+database.  
 
-The VPC template is the foundation for everything else. It creates a VPC
-containing the following network resources:
+The VPC template is the foundation for everything else. It creates a VPC containing the
+following network resources:
 - Two public subnets.
 - Two private subnets.
 - Route table with Internet Gateway for public subnets.
 - Security groups for an app, load balancer, database, and bastion host.
     
-The bastion host is used to connect to instances with private IP addresses
-in the private subnets. Details about using the bastion host are described in
-a handy [AWS blog post](https://aws.amazon.com/blogs/security/securely-connect-to-linux-instances-running-in-a-private-amazon-vpc).  
+The bastion host is used to connect to instances with private IP addresses in the private 
+subnets. Details about using the bastion host are described in a handy [AWS blog post](https://aws.amazon.com/blogs/security/securely-connect-to-linux-instances-running-in-a-private-amazon-vpc).  
 
-Optionally, a relational database can be created using the db.cfn.yml template.  
-Either a MySQL or PostgreSQL database is created in the Amazon Relational 
-Database Service (RDS), which automates much of the heavy lifting of setting up 
-and maintaining a relational database. Following best practices, the database is 
-set up in private subnets concealed from the public Internet.  
+Optionally, a relational database can be created using the db.cfn.yml template. Either
+a MySQL or PostgreSQL database is created in the Amazon Relational Database Service
+(RDS), which automates much of the heavy lifting of database setup and maintenance.
+Following best practices, the database is created in private subnets concealed from the 
+public Internet.  
 
 ### USING THE TEMPLATES
 
