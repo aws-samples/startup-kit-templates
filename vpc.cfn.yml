@@ -34,8 +34,8 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !FindInMap [CIDRMap, VPC, CIDR]
-      EnableDnsSupport: 'true'
-      EnableDnsHostnames: 'true'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
       Tags:
       - Key: Name
         Value: StartupKit
@@ -133,7 +133,7 @@ Resources:
         FromPort: 80
         
   ELBSecurityGroupToAppEgress:
-    Type: AWS::EC2::SecurityGroupEgress  # prevent circular references between security groups
+    Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
     Properties:
       GroupId: !Ref ELBSecurityGroup
       IpProtocol: tcp
@@ -151,15 +151,28 @@ Resources:
         IpProtocol: tcp
         ToPort: 80
         FromPort: 80
+      - SourceSecurityGroupId: !Ref BastionSecurityGroup
+        IpProtocol: tcp
+        ToPort: 22
+        FromPort: 22
 
   AppSecurityGroupFromELBIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent circular references between security groups
+    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
     Properties:
       GroupId: !Ref AppSecurityGroup
       IpProtocol: tcp
       ToPort: 80
       FromPort: 80
       SourceSecurityGroupId: !Ref ELBSecurityGroup
+
+  AppSecurityGroupFromBastionIngress:
+    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
 
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -171,18 +184,18 @@ Resources:
         IpProtocol: tcp
         ToPort: 22
         FromPort: 22
-      SecurityGroupEgress:
-      - CidrIp: !FindInMap [CIDRMap, Private1, CIDR]
-        IpProtocol: tcp
-        ToPort: 22
-        FromPort: 22
-      - CidrIp: !FindInMap [CIDRMap, Private2, CIDR]
-        IpProtocol: tcp
-        ToPort: 22
-        FromPort: 22
 
+  BastionSecurityGroupToAppEgress:
+    Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
+    Properties:
+      GroupId: !Ref BastionSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      DestinationSecurityGroupId: !Ref AppSecurityGroup
+      
   BastionSecurityGroupToDbEgress:
-    Type: AWS::EC2::SecurityGroupEgress  # prevent circular references between security groups
+    Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
     Properties:
       GroupId: !Ref BastionSecurityGroup
       IpProtocol: tcp
@@ -206,7 +219,7 @@ Resources:
         FromPort: 5432
 
   DbSecurityGroupFromBastionIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent circular references between security groups
+    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
     Properties:
       GroupId: !Ref DbSecurityGroup
       IpProtocol: tcp
@@ -215,7 +228,7 @@ Resources:
       SourceSecurityGroupId: !Ref BastionSecurityGroup
 
   DbSecurityGroupFromAppIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent circular references between security groups
+    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
     Properties:
       GroupId: !Ref DbSecurityGroup
       IpProtocol: tcp
