@@ -11,8 +11,8 @@ following network resources:
 - Route table with Internet Gateway for public subnets.
 - Security groups for an app, load balancer, database, and bastion host.
     
-The bastion host is used to connect to instances with private IP addresses in the  
-application security group.    
+The bastion host is used to connect to instances with private IP addresses in the security  
+group for the application.    
 
 Optionally, a relational database can be created using the db.cfn.yml template. Either
 a MySQL or PostgreSQL database is created in the Amazon Relational Database Service
