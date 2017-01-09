@@ -11,8 +11,8 @@ following network resources:
 - Route table with Internet Gateway for public subnets.
 - Security groups for an app, load balancer, database, and bastion host.
     
-The bastion host is used to connect to instances with private IP addresses in the private 
-subnets. Details about using the bastion host are described in a handy [AWS blog post](https://aws.amazon.com/blogs/security/securely-connect-to-linux-instances-running-in-a-private-amazon-vpc).  
+The bastion host is used to connect to instances with private IP addresses in the  
+application security group.    
 
 Optionally, a relational database can be created using the db.cfn.yml template. Either
 a MySQL or PostgreSQL database is created in the Amazon Relational Database Service
@@ -53,13 +53,19 @@ stack you created in step [1].
 name, and then enter the various database parameters such as the user name and
 password. For NetworkStackName, enter the name of the VPC stack you created in
 step [1]. When selecting the EnvironmentName, dev or prod, keep in mind that 
-prod will set up a Multi-AZ RDS database that is highly available with a primary-
-standby setup. This is a best practice for production, but not for dev and would
-be an unnecessary expense.
+prod will set up a Multi-AZ RDS database that is highly available and configured
+with a primary-standby setup. This is a best practice for production, but not for
+a test/development environment and would be an unnecessary expense.
 
-#### Connecting to Your Database
+#### Connecting to Your Instances and Database
 
-Since the database is in a private subnet, it is necessary to connect to it via
+In general, it is best to treat your fleet of instances as "cattle, not pets" and
+avoid SSH'ing into them to manage them individually. When it's necessary to connect
+for debugging purposes etc., connect via the bastion host created with the bastion
+template. One way to do this is to use SSH agent forwarding. For details about how
+to set this up on your local computer, consult the relevant [AWS blog post](https://aws.amazon.com/blogs/security/securely-connect-to-linux-instances-running-in-a-private-amazon-vpc).
+
+Since the database is in a private subnet, it also is necessary to connect to it via
 the bastion host using a method such as TCP/IP over SSH. For an example of how 
 to do this with MySQL Workbench, see the [documentation](http://dev.mysql.com/doc/workbench/en/wb-mysql-connections-methods-ssh.html).  
 
@@ -96,6 +102,6 @@ instances.
 
 - Application instances, such as RESTful API servers or web servers, should be
 assigned to the "AppSecurityGroup" so they can talk to the database as
-well as the load balancer.
+well as the load balancer, and receive SSH traffic from the bastion host.
 
 
