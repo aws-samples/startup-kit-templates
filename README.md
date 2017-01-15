@@ -4,15 +4,16 @@ The AWS Startup Kit CloudFormation templates create stacks to support well-archi
 workloads on AWS. Components include a VPC, a bastion host, and an (optional) relational
 database.  
 
-The VPC template is the foundation for everything else. It creates a VPC containing the
-following network resources:
+The VPC template is the foundation for everything else. It creates a VPC that includes
+the following network resources:
 - Two public subnets.
 - Two private subnets.
-- Route table with Internet Gateway for public subnets.
+- A NAT Gateway to allow instances in private subnets to communicate with AWS services.
+- Two route tables, one for public subnets and the other for private subnets.
 - Security groups for an app, load balancer, database, and bastion host.
     
-The bastion host is used to connect to instances with private IP addresses in the application's
-security group.    
+The bastion host is used to provide SSH access to instances with private IP addresses in
+the application's security group.    
 
 Optionally, a relational database can be created using the db.cfn.yml template. Either
 a MySQL or PostgreSQL database is created in the Amazon Relational Database Service
