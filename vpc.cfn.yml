@@ -88,37 +88,30 @@ Resources:
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId:
-        Ref: InternetGateway
+      GatewayId: !Ref InternetGateway
 
   PublicSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId:
-        Ref: PublicSubnet1
-      RouteTableId:
-        Ref: PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
 
   PublicSubnetRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId:
-        Ref: PublicSubnet2
-      RouteTableId:
-        Ref: PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
 
   PublicSubnetNetworkAclAssociation1:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties:
-      SubnetId:
-        Ref: PublicSubnet1
+      SubnetId: !Ref PublicSubnet1
       NetworkAclId: !GetAtt VPC.DefaultNetworkAcl
 
   PublicSubnetNetworkAclAssociation2:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties:
-      SubnetId:
-        Ref: PublicSubnet2
+      SubnetId: !Ref PublicSubnet2
       NetworkAclId: !GetAtt VPC.DefaultNetworkAcl
       
   ELBSecurityGroup:
@@ -235,6 +228,50 @@ Resources:
       ToPort: 5432
       FromPort: 3306
       SourceSecurityGroupId: !Ref AppSecurityGroup
+      
+  # NAT-related resources
+  # 
+  # NAT is used to allow instances in private subnets to communicate with AWS
+  # services, and pull down code and updates.  
+  
+  NatGateway:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NatEIP:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      
+  NatRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  NatRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref NatRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref NatRouteTable
+
+  PrivateSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref NatRouteTable
+
 
 Outputs:
 
