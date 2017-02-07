@@ -193,6 +193,11 @@ Resources:
         IpProtocol: tcp
         ToPort: 22
         FromPort: 22
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
 
   BastionSecurityGroupToAppEgress:
     Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
