@@ -1,8 +1,8 @@
-# startup-kit-templates
+# AWS Startup Kit Templates
 
 The AWS Startup Kit CloudFormation templates create stacks to support well-architected
-workloads on AWS. Components include a VPC, a bastion host, and an (optional) relational
-database.  
+workloads on AWS. Components include a VPC, a bastion host, and optionally a relational
+database and AWS Elastic Beanstalk app.  
 
 The VPC template is the foundation for everything else. It creates a VPC that includes
 the following network resources:
@@ -19,7 +19,9 @@ Optionally, a relational database can be created using the db.cfn.yml template. 
 a MySQL or PostgreSQL database is created in the Amazon Relational Database Service
 (RDS), which automates much of the heavy lifting of database setup and maintenance.
 Following best practices, the database is created in private subnets concealed from the 
-public Internet.  
+public Internet.  Similarly, the optional app template creates an Elastic Beanstalk app
+with application servers placed in private subnets while the load balancer in front of
+them is placed in public subnets.  
 
 ### USING THE TEMPLATES
 
@@ -58,6 +60,16 @@ prod will set up a Multi-AZ RDS database that is highly available and configured
 with a primary-standby setup. This is a best practice for production, but not for
 a test/development environment and would be an unnecessary expense.
 
+**[4] Create the app**: select the app.cfn.yml template. Pick a relevant stack
+name, and enter the name of the S3 bucket and key (file) where you have
+stored the app code. For NetworkStackName, enter the name of the VPC stack you
+created in step [1], and for DatabaseStackName enter the name of the database
+stack you created in step [3].  For the app code itself, you can try out a 
+Startup Kit sample workload listed below, or see 'Adding an Application' at 
+the end of this README:
+        
+        https://github.com/awslabs/startup-kit-nodejs
+
 #### Connecting to Your Instances and Database
 
 In general, it is best to treat your fleet of instances as "cattle, not pets" and
@@ -80,16 +92,17 @@ corresponding outputs for "DbUser" and "DbPassword" from the Outputs tab.
 
 #### Adding an Application
 
-An app template is forthcoming to automate the process of setting up an app in
-AWS Elastic Beanstalk. However, it is not necessary to use an app template to
+Using the app template automates the process of setting up an app in
+AWS Elastic Beanstalk. However, it is not necessary to use the app template to
 leverage the benefits of the other templates. You can add an application on top
 of the infrastructure created in steps [1] to [3] using any technologies of your
 choice.
 
-For example, you can use Elastic Beanstalk to set up a load balanced, highly
-available environment. Alternatively, you can manually set up a load balancer
-and an autoscaling group (ASG). To ensure your app is highly available, make 
-sure to spin up at least two server instances in separate availability zones.  
+For example, you can use the Elastic Beanstalk console to set up a load balanced,
+highly available environment. Alternatively, you can directly set up a load balancer
+and an autoscaling group (ASG) without using Elastic Beanstalk. To ensure your app
+is highly available, make sure to spin up at least two server instances in separate
+availability zones.  
 
 As you add application components on top of the infrastructure created with the
 templates, make sure that each component is (a) set up in the VPC created in
