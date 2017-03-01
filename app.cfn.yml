@@ -1,0 +1,300 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:  AWS Elastic Beanstalk app - built by AWS Startup Kit
+
+# App stack creation prerequisites:  first create a VPC stack, then a DB stack.
+
+Parameters:
+
+  ApplicationName:
+    Description: Name of your application.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  StackType:
+    Description: node, rails, or spring.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedValues: 
+      - node
+      - rails
+      - spring
+    ConstraintDescription: Specify node, rails, or spring.
+    
+  EnvironmentName:
+    Description: Environment name, either dev or prod.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedValues: 
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod.
+
+  NetworkStackName:
+    Description: Name of an active CloudFormation stack of networking resources.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  DatabaseStackName:
+    Description: Name of an active CloudFormation stack of database resources.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  DatabaseName:
+    Description: Database name (schema).
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  AppS3Bucket:
+    Description: S3 Bucket containing your application package.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+
+  AppS3Key:
+    Description: S3 Bucket key for your application package.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    
+  EC2KeyPairName:
+    Description: EC2 key pair name for SSH access.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    
+
+Conditions: 
+
+  CreateProdEnv: !Equals [ !Ref EnvironmentName, prod ]
+  
+    
+Mappings:
+
+  # Maps stack type parameter to solution stack name string
+  StackMap:  
+    node:
+      stackName: 64bit Amazon Linux 2016.09 v3.1.0 running Node.js
+    rails:
+      stackName: 64bit Amazon Linux 2016.09 v2.2.0 running Ruby 2.3 (Puma)
+    spring:
+      stackName: 64bit Amazon Linux 2016.09 v2.3.1 running Tomcat 8 Java 8
+
+Resources:
+
+  Application:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      ApplicationName: !Ref ApplicationName
+
+  ApplicationVersion:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName: !Ref Application
+      SourceBundle:
+        S3Bucket: !Ref AppS3Bucket
+        S3Key: !Ref AppS3Key
+
+  Environment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      EnvironmentName: !Sub "${ApplicationName}-${EnvironmentName}"
+      ApplicationName: !Ref Application
+      TemplateName: !Ref ConfigurationTemplate
+      VersionLabel: !Ref ApplicationVersion
+  
+  # The configuration template contains environment parameters such as those
+  # that relate to the autoscaling group (e.g. size, triggers), placement of
+  # resources in the VPC, load balancer setup, and environment variables
+  ConfigurationTemplate:
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName: !Ref Application
+      SolutionStackName: !FindInMap [StackMap, !Ref StackType, stackName]
+      OptionSettings:
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: EnvironmentType
+        Value: LoadBalanced
+        
+        # AUTOSCALING OPTIONS
+      - Namespace: aws:autoscaling:asg
+        OptionName: MinSize
+        Value: 2
+      - Namespace: aws:autoscaling:asg
+        OptionName: MaxSize
+        Value: 6
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: SecurityGroups
+        Value: !ImportValue
+          "Fn::Sub": "${NetworkStackName}-AppSecurityGroupID"
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: SSHSourceRestriction
+        Value:
+          "Fn::Join":
+          - ','
+          - - 'tcp, 22, 22'
+            - !ImportValue
+                "Fn::Sub": "${NetworkStackName}-BastionGroupID"
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: InstanceType
+        Value: !If [ CreateProdEnv, 't2.large', 't2.micro' ]  
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: IamInstanceProfile
+        Value: !Ref AppInstanceProfile
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: EC2KeyName
+        Value: !Ref EC2KeyPairName
+      - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+        OptionName: RollingUpdateEnabled
+        Value: true
+      - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+        OptionName: RollingUpdateType
+        Value: Health
+      - Namespace: aws:autoscaling:trigger
+        OptionName: MeasureName
+        Value: CPUUtilization
+      - Namespace: aws:autoscaling:trigger
+        OptionName: Unit
+        Value: Percent
+      - Namespace: aws:autoscaling:trigger
+        OptionName: UpperThreshold
+        Value: 80       
+      - Namespace: aws:autoscaling:trigger
+        OptionName: LowerThreshold
+        Value: 40  
+        
+        # VPC OPTIONS (PLACEMENT OF RESOURCES IN SUBNETS)
+      - Namespace: aws:ec2:vpc
+        OptionName: VPCId
+        Value: !ImportValue
+          "Fn::Sub": "${NetworkStackName}-VpcID"
+      - Namespace: aws:ec2:vpc
+        OptionName: Subnets
+        Value:
+          "Fn::Join":
+          - ','
+          - - !ImportValue
+                "Fn::Sub": "${NetworkStackName}-PrivateSubnet1ID"
+            - !ImportValue
+                "Fn::Sub": "${NetworkStackName}-PrivateSubnet2ID"
+      - Namespace: aws:ec2:vpc
+        OptionName: ELBSubnets
+        Value:
+          "Fn::Join":
+          - ','
+          - - !ImportValue
+                "Fn::Sub": "${NetworkStackName}-PublicSubnet1ID"
+            - !ImportValue
+                "Fn::Sub": "${NetworkStackName}-PublicSubnet2ID"
+                
+        # LOAD BALANCER OPTIONS
+      - Namespace: aws:elb:loadbalancer
+        OptionName: CrossZone
+        Value: true
+      - Namespace: aws:elb:policies
+        OptionName: ConnectionDrainingEnabled
+        Value: true
+      - Namespace: aws:elb:loadbalancer
+        OptionName: SecurityGroups
+        Value: !ImportValue
+          "Fn::Sub": "${NetworkStackName}-ELBSecurityGroupID"
+      - Namespace: aws:elb:loadbalancer
+        OptionName: ManagedSecurityGroup
+        Value: !ImportValue
+          "Fn::Sub": "${NetworkStackName}-ELBSecurityGroupID"
+          
+      # ENVIRONMENT VARIABLES - COMMON TO ALL STACKS
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: AWS_REGION
+        Value: !Ref "AWS::Region"
+        
+      # ENVIRONMENT VARIABLES - NODE, RAILS
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: DB_PASSWORD
+        Value: !ImportValue
+          "Fn::Sub": "${DatabaseStackName}-DatabasePassword"
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: DB_USER
+        Value: !ImportValue
+          "Fn::Sub": "${DatabaseStackName}-DatabaseUser"
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: DB_NAME
+        Value: !Ref DatabaseName
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: DB_HOST
+        Value: !ImportValue
+          "Fn::Sub": "${DatabaseStackName}-DatabaseURL"  
+          
+      # ENVIRONMENT VARIABLES - SPRING
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: spring.datasource.password
+        Value: !ImportValue
+          "Fn::Sub": "${DatabaseStackName}-DatabasePassword"
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: spring.datasource.username
+        Value: !ImportValue
+          "Fn::Sub": "${DatabaseStackName}-DatabaseUser"
+      - Namespace: aws:elasticbeanstalk:application:environment
+        OptionName: spring.datasource.url
+        Value:
+          "Fn::Join":
+          - ''
+          - - 'jdbc:mysql://'
+            - !ImportValue
+                "Fn::Sub": "${DatabaseStackName}-DatabaseURL"
+            - ':3306/'
+            - Ref: DatabaseName
+  
+  # IAM resources  
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement: 
+          - 
+            Effect: Allow
+            Principal: 
+              Service: 
+                - ec2.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+  
+  AppPolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: App
+      Roles:
+      - !Ref AppRole
+      PolicyDocument: 
+        Version: 2012-10-17
+        Statement: 
+          - 
+            Effect: Allow
+            Action: "*"
+            Resource: "*"
+  
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - !Ref AppRole
+      
+
+Outputs:
+
+  EnvironmentURL:
+    Description: Environment URL
+    Value: !GetAtt Environment.EndpointURL
+    
