@@ -66,9 +66,13 @@ a test/development environment and would be an unnecessary expense.
 name, and enter the name of the S3 bucket and key (file) where you have
 stored the app code. For NetworkStackName, enter the name of the VPC stack you
 created in step [1], and for DatabaseStackName enter the name of the database
-stack you created in step [3].  For the app code itself, you can try out a 
-Startup Kit sample workload listed below, or see 'Adding an Application' at 
-the end of this README:
+stack you created in step [3].  Before clicking the **Create** button in the 
+CloudFormation console, check the Capabilities section just above the button and
+be sure you have checked the checkbox acknowledging that IAM resources will be 
+created.  
+
+For the app code itself, you can try out a Startup Kit sample workload listed
+below, or see 'Adding an Application' at the end of this README:
         
 - https://github.com/awslabs/startup-kit-nodejs
 
