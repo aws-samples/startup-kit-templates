@@ -21,7 +21,9 @@ a MySQL or PostgreSQL database is created in the Amazon Relational Database Serv
 Following best practices, the database is created in private subnets concealed from the 
 public Internet.  Similarly, the optional app template creates an Elastic Beanstalk app
 with application servers placed in private subnets while the load balancer in front of
-them is placed in public subnets.  
+them is placed in public subnets.  The complete architecture is as follows:  
+
+![Architecture](images/architecture.png)
 
 ### USING THE TEMPLATES
 
@@ -68,7 +70,7 @@ stack you created in step [3].  For the app code itself, you can try out a
 Startup Kit sample workload listed below, or see 'Adding an Application' at 
 the end of this README:
         
-        https://github.com/awslabs/startup-kit-nodejs
+- https://github.com/awslabs/startup-kit-nodejs
 
 #### Connecting to Your Instances and Database
 
