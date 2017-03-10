@@ -83,7 +83,7 @@ Mappings:
   # Maps stack type parameter to solution stack name string
   StackMap:  
     node:
-      stackName: 64bit Amazon Linux 2016.09 v3.3.1 running Node.js
+      stackName: 64bit Amazon Linux 2016.09 v4.0.0 running Node.js
     rails:
       stackName: 64bit Amazon Linux 2016.09 v2.3.1 running Ruby 2.3 (Puma)
     spring:
