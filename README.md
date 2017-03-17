@@ -46,35 +46,42 @@ under "Choose a template", select "Upload a template to Amazon S3" and click
 
 Create the stacks in the following order:
 
-**[1] Create the VPC**: select the vpc.cfn.yml template. Pick a relevant stack
+**[1] Create the VPC**: Select the vpc.cfn.yml template. Pick a relevant stack
 name, and an IP address or address range from which you will allow SSH access
 to the bastion host. Use [CIDR notation](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).
 
-**[2] Create the bastion**: select the bastion.cfn.yml template. Pick a relevant
+**[2] Create the bastion**: Select the bastion.cfn.yml template. Pick a relevant
 stack name, and then enter the name of your EC2 key pair and the name of the VPC
 stack you created in step [1]. 
 
-**[3] Create the database**: select the db.cfn.yml template. Pick a relevant stack
-name, and then enter the various database parameters such as the user name and
-password. For NetworkStackName, enter the name of the VPC stack you created in
-step [1]. When selecting the EnvironmentName, dev or prod, keep in mind that 
-prod will set up a Multi-AZ RDS database that is highly available and configured
-with a primary-standby setup. This is a best practice for production, but not for
-a test/development environment and would be an unnecessary expense.
+**[3] Create the database**: Select the db.cfn.yml template. 
+- Pick a relevant stack name, and then enter the various database parameters such
+as the user name and password. 
+- For NetworkStackName, enter the name of the VPC stack you created in step [1]. 
+- For EnvironmentName, select dev or prod.  Keep in mind that prod will set up a 
+Multi-AZ RDS database that is highly available and configured with a primary-standby
+setup. This is a best practice for production, but not for a test/development environment
+and would be an unnecessary expense.
 
-**[4] Create the app**: select the app.cfn.yml template. Pick a relevant stack
-name, and enter the name of the S3 bucket and key (file) where you have
-stored the app code. For NetworkStackName, enter the name of the VPC stack you
-created in step [1], and for DatabaseStackName enter the name of the database
-stack you created in step [3].  Before clicking the **Create** button in the 
-CloudFormation console, check the Capabilities section just above the button and
-be sure you have checked the checkbox acknowledging that IAM resources will be 
-created.  
+**[4] Create the app**: First, decide which app you'd like to deploy.
+- You can try out a Startup Kit sample workload.  At this time, there is one available,
+a Node.js Express app, see https://github.com/awslabs/startup-kit-nodejs.  
+- Alternatively, if you wish to deploy your own code, see 'Adding an Application'
+at the end of this README.
+- Before proceeding, follow the directions in the Startup Kit sample workload README.
+It's a good idea to make sure your app runs locally before deploying on AWS.
+- Either create a S3 bucket to hold your app code, or make sure you have an existing S3 bucket you can use.  Put your code in the bucket.
+- Select the app.cfn.yml template. 
+- Pick a relevant stack name. 
+- For AppS3Bucket, enter the name of the S3 bucket that contains your code.
+- For AppS3Key, enter the name of your code file in the S3 bucket.  For example, if your
+app is a Node.js app, it would be the name of your Node.js code zip file. 
+- For NetworkStackName, enter the name of the VPC stack you created in step [1].
+- For DatabaseStackName enter the name of the database stack you created in step [3].  
+- IMPORTANT:  before clicking the **Create** button in the CloudFormation console, 
+go to the Capabilities section just above the button, and be sure you have checked the
+checkbox acknowledging that IAM resources will be created.  
 
-For the app code itself, you can try out a Startup Kit sample workload listed
-below, or see 'Adding an Application' at the end of this README:
-        
-- https://github.com/awslabs/startup-kit-nodejs
 
 #### Connecting to Your Instances and Database
 
@@ -98,11 +105,20 @@ corresponding outputs for "DbUser" and "DbPassword" from the Outputs tab.
 
 #### Adding an Application
 
-Using the app template automates the process of setting up an app in
-AWS Elastic Beanstalk. However, it is not necessary to use the app template to
-leverage the benefits of the other templates. You can add an application on top
-of the infrastructure created in steps [1] to [3] using any technologies of your
-choice.
+Using the app template automates the process of setting up an app in AWS Elastic
+Beanstalk. Additionally, using a Startup Kit sample workload allows you to quickly
+test out your VPC and database setup.
+
+However, you can deploy your own app instead of a Startup Kit sample workload.  If
+you use the app template, keep in mind that it is designed to work with a relational
+database in RDS.  If your own app uses a relational database, the database connection
+string parameters should conform to the naming conventions in the template, or you
+can fork the templates and modify the names.  Similarly, if you're not using a
+relational database at all, you can modify the app template accordingly.
+
+Additionally, it is not necessary to use the app template to leverage the benefits 
+of the other templates. You can add an application on top of the infrastructure created
+in steps [1] to [3] using any technologies of your choice.
 
 For example, you can use the Elastic Beanstalk console to set up a load balanced,
 highly available environment. Alternatively, you can directly set up a load balancer
