@@ -211,6 +211,14 @@ Resources:
         OptionName: ManagedSecurityGroup
         Value: !ImportValue
           "Fn::Sub": "${NetworkStackName}-ELBSecurityGroupID"
+               
+        # CLOUDWATCH LOGS
+      - Namespace: aws:elasticbeanstalk:cloudwatch:logs
+        OptionName: StreamLogs
+        Value: true
+      - Namespace: aws:elasticbeanstalk:cloudwatch:logs
+        OptionName: DeleteOnTerminate
+        Value: true
           
       # ENVIRONMENT VARIABLES - COMMON TO ALL STACKS
       - Namespace: aws:elasticbeanstalk:application:environment
@@ -297,4 +305,19 @@ Outputs:
   EnvironmentURL:
     Description: Environment URL
     Value: !GetAtt Environment.EndpointURL
+    Export:
+      Name: !Sub "${AWS::StackName}-EnvironmentURL"
+
+  EnvironmentName:
+    Description: Environment Name
+    Value: !Sub "${ApplicationName}-${EnvironmentName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-EnvironmentName"
+
+  TypeOfStack:
+    Description: Stack type
+    Value: !Ref StackType
+    Export:
+      Name: !Sub "${AWS::StackName}-TypeOfStack"
+
     
