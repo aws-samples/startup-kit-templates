@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:  AWS Startup Kit DevOps resources
+
+# Ops stack creation prerequisites:  first create an app stack.
+
+Parameters:
+
+  AppStackName:
+    Description: Name of the active CloudFormation stack for your app.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+Resources:
+
+  #  METRIC FILTERS
+  
+  LoginLatencyMetricFilter:
+    Type: "AWS::Logs::MetricFilter"
+    Properties: 
+      LogGroupName: 
+        "Fn::Join":
+        - ''
+        - - '/aws/elasticbeanstalk/'
+          - !ImportValue
+            "Fn::Sub": "${AppStackName}-EnvironmentName"
+          - '/var/log/nodejs/nodejs.log'
+      FilterPattern: '[ timestamp, level, message = POST_AUTH_latency, latency ]'
+      MetricTransformations: 
+        - 
+          MetricValue: $latency
+          MetricNamespace: STARTUP_KIT/API
+          MetricName: LOGIN_LATENCY
+          
+  # ALARMS
+  
+  LoginFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm on login attempt failures
+      ActionsEnabled: true
+      AlarmActions:
+      - !Ref StartupKitDevOpsSNSTopic
+      MetricName: LOGIN_FAILURE_COUNT
+      Namespace: STARTUP_KIT/API
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+
+  # NOTIFICATION RESOURCES
+  
+  StartupKitDevOpsSNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties: 
+      DisplayName: STARTUP_KIT_DEVOPS
+      TopicName: STARTUP_KIT_DEVOPS
+        
+        

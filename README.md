@@ -82,6 +82,10 @@ app is a Node.js app, it would be the name of your Node.js code zip file.
 go to the Capabilities section just above the button, and be sure you have checked the
 checkbox acknowledging that IAM resources will be created.  
 
+**[5] Create DevOps resources**: Select the devops.cfn.yml template. NOTE:  These resources
+are meant to be used with the Node.js sample app, but can be modified to work with another app.  
+- Pick a relevant stack name. 
+- For AppStackName, enter the name of the app stack you created in step [4].
 
 #### Connecting to Your Instances and Database
 
