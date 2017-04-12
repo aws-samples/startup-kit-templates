@@ -44,7 +44,7 @@ Parameters:
     Type: String
     Description: Database storage size in gigabytes (GB)
     MinLength: 1
-    AllowedPattern: "[5-9][0-9]*"
+    AllowedPattern: "[5-9]|[1-9][0-9]+"
     ConstraintDescription: Enter a size of at least 5 GB
     
   DatabaseEngine:
