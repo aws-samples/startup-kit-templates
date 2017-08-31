@@ -13,22 +13,24 @@ Parameters:
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
   StackType:
-    Description: node, rails, or spring.
+    Description: node, rails, python, python3 or spring.
     Type: String
     MinLength: 1
     MaxLength: 255
-    AllowedValues: 
+    AllowedValues:
       - node
       - rails
       - spring
-    ConstraintDescription: Specify node, rails, or spring.
-    
+      - python
+      - python3
+    ConstraintDescription: Specify node, rails, python, python3 or spring.
+
   EnvironmentName:
     Description: Environment name, either dev or prod.
     Type: String
     MinLength: 1
     MaxLength: 255
-    AllowedValues: 
+    AllowedValues:
       - dev
       - prod
     ConstraintDescription: Specify either dev or prod.
@@ -65,29 +67,32 @@ Parameters:
     Type: String
     MinLength: 1
     MaxLength: 255
-    
+
   EC2KeyPairName:
     Description: EC2 key pair name for SSH access.
     Type: String
     MinLength: 1
     MaxLength: 255
-    
 
-Conditions: 
+
+Conditions:
 
   CreateProdEnv: !Equals [ !Ref EnvironmentName, prod ]
-  
-    
-Mappings:
 
+
+Mappings:
   # Maps stack type parameter to solution stack name string
-  StackMap:  
+  StackMap:
     node:
-      stackName: 64bit Amazon Linux 2016.09 v4.0.0 running Node.js
+      stackName: 64bit Amazon Linux 2017.03 v4.2.2 running Node.js
     rails:
-      stackName: 64bit Amazon Linux 2016.09 v2.3.1 running Ruby 2.3 (Puma)
+      stackName: 64bit Amazon Linux 2017.03 v2.4.4 running Ruby 2.3 (Puma)
     spring:
-      stackName: 64bit Amazon Linux 2016.09 v2.5.2 running Tomcat 8 Java 8
+      stackName: 64bit Amazon Linux 2017.03 v2.6.4 running Tomcat 8 Java 8
+    python:
+      stackName: 64bit Amazon Linux 2017.03 v2.5.1 running Python 2.7
+    python3:
+      stackName: 64bit Amazon Linux 2017.03 v2.5.1 running Python 3.4
 
 Resources:
 
@@ -111,7 +116,7 @@ Resources:
       ApplicationName: !Ref Application
       TemplateName: !Ref ConfigurationTemplate
       VersionLabel: !Ref ApplicationVersion
-  
+
   # The configuration template contains environment parameters such as those
   # that relate to the autoscaling group (e.g. size, triggers), placement of
   # resources in the VPC, load balancer setup, and environment variables
@@ -124,7 +129,7 @@ Resources:
       - Namespace: aws:elasticbeanstalk:environment
         OptionName: EnvironmentType
         Value: LoadBalanced
-        
+
         # AUTOSCALING OPTIONS
       - Namespace: aws:autoscaling:asg
         OptionName: MinSize
@@ -146,7 +151,7 @@ Resources:
                 "Fn::Sub": "${NetworkStackName}-BastionGroupID"
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: InstanceType
-        Value: !If [ CreateProdEnv, 't2.large', 't2.micro' ]  
+        Value: !If [ CreateProdEnv, 't2.large', 't2.micro' ]
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: IamInstanceProfile
         Value: !Ref AppInstanceProfile
@@ -167,11 +172,11 @@ Resources:
         Value: Percent
       - Namespace: aws:autoscaling:trigger
         OptionName: UpperThreshold
-        Value: 80       
+        Value: 80
       - Namespace: aws:autoscaling:trigger
         OptionName: LowerThreshold
-        Value: 40  
-        
+        Value: 40
+
         # VPC OPTIONS (PLACEMENT OF RESOURCES IN SUBNETS)
       - Namespace: aws:ec2:vpc
         OptionName: VPCId
@@ -195,7 +200,7 @@ Resources:
                 "Fn::Sub": "${NetworkStackName}-PublicSubnet1ID"
             - !ImportValue
                 "Fn::Sub": "${NetworkStackName}-PublicSubnet2ID"
-                
+
         # LOAD BALANCER OPTIONS
       - Namespace: aws:elb:loadbalancer
         OptionName: CrossZone
@@ -211,7 +216,7 @@ Resources:
         OptionName: ManagedSecurityGroup
         Value: !ImportValue
           "Fn::Sub": "${NetworkStackName}-ELBSecurityGroupID"
-               
+
         # CLOUDWATCH LOGS
       - Namespace: aws:elasticbeanstalk:cloudwatch:logs
         OptionName: StreamLogs
@@ -219,12 +224,12 @@ Resources:
       - Namespace: aws:elasticbeanstalk:cloudwatch:logs
         OptionName: DeleteOnTerminate
         Value: true
-          
+
       # ENVIRONMENT VARIABLES - COMMON TO ALL STACKS
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: AWS_REGION
         Value: !Ref "AWS::Region"
-        
+
       # ENVIRONMENT VARIABLES - NODE, RAILS
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_PASSWORD
@@ -240,8 +245,8 @@ Resources:
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_HOST
         Value: !ImportValue
-          "Fn::Sub": "${DatabaseStackName}-DatabaseURL"  
-          
+          "Fn::Sub": "${DatabaseStackName}-DatabaseURL"
+
       # ENVIRONMENT VARIABLES - SPRING
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: spring.datasource.password
@@ -261,44 +266,44 @@ Resources:
                 "Fn::Sub": "${DatabaseStackName}-DatabaseURL"
             - ':3306/'
             - Ref: DatabaseName
-  
-  # IAM resources  
+
+  # IAM resources
   AppRole:
     Type: AWS::IAM::Role
     Properties:
       Path: /
       AssumeRolePolicyDocument:
         Version: 2012-10-17
-        Statement: 
-          - 
+        Statement:
+          -
             Effect: Allow
-            Principal: 
-              Service: 
+            Principal:
+              Service:
                 - ec2.amazonaws.com
-            Action: 
+            Action:
               - sts:AssumeRole
-  
+
   AppPolicies:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: App
       Roles:
       - !Ref AppRole
-      PolicyDocument: 
+      PolicyDocument:
         Version: 2012-10-17
-        Statement: 
-          - 
+        Statement:
+          -
             Effect: Allow
             Action: "*"
             Resource: "*"
-  
+
   AppInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
       Roles:
       - !Ref AppRole
-      
+
 
 Outputs:
 
@@ -320,4 +325,4 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-TypeOfStack"
 
-    
+
