@@ -31,7 +31,7 @@ Parameters:
     Description: Set to true to only install one NAT gateay
     Type: String
     ConstraintDescription: Value must be true or false
-    Default: false
+    Default: true
     AllowedValues:
       - true
       - false
