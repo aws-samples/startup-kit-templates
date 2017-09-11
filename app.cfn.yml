@@ -74,11 +74,48 @@ Parameters:
     MinLength: 1
     MaxLength: 255
 
+  DevInstanceType:
+    Description: The instance type for the dev environment
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: t2.micro
+
+  ProdInstanceType:
+    Description: The instance type for the prod environment
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: t2.large
+
+  SSLCertificateArn:
+    Description: The SSL/TLS certificate ARN
+    Type: String
+    MinLength: 0
+    MaxLength: 2048
+    Default: ""
+
+  AutoScalingMinInstanceCount:
+    Description: Minimum number of EC2 instances for Auto Scaling
+    Type: Number
+    MinValue: 1
+    MaxValue: 20
+    Default: 2
+    ConstraintDescription: Specify a number between 1 - 20
+
+  AutoScalingMaxInstanceCount:
+    Description: Maximum number of EC2 instances for Auto Scaling
+    Type: Number
+    MinValue: 1
+    MaxValue: 20
+    Default: 6
+    ConstraintDescription: Specify a number between 1 - 20
 
 Conditions:
 
   CreateProdEnv: !Equals [ !Ref EnvironmentName, prod ]
 
+  TlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
 
 Mappings:
   # Maps stack type parameter to solution stack name string
@@ -95,6 +132,22 @@ Mappings:
       stackName: 64bit Amazon Linux 2017.03 v2.5.1 running Python 3.4
 
 Resources:
+
+  ElasticBeanstalkServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": [ "elasticbeanstalk.amazonaws.com" ]},
+            "Action": [ "sts:AssumeRole" ]
+          }]
+        }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth
+        - arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService
 
   Application:
     Type: AWS::ElasticBeanstalk::Application
@@ -116,6 +169,9 @@ Resources:
       ApplicationName: !Ref Application
       TemplateName: !Ref ConfigurationTemplate
       VersionLabel: !Ref ApplicationVersion
+    DependsOn:
+      - ConfigurationTemplate
+      - ApplicationVersion
 
   # The configuration template contains environment parameters such as those
   # that relate to the autoscaling group (e.g. size, triggers), placement of
@@ -124,23 +180,35 @@ Resources:
     Type: AWS::ElasticBeanstalk::ConfigurationTemplate
     Properties:
       ApplicationName: !Ref Application
-      SolutionStackName: !FindInMap [StackMap, !Ref StackType, stackName]
+      SolutionStackName: !FindInMap [ StackMap, !Ref StackType, stackName ]
       OptionSettings:
+
       - Namespace: aws:elasticbeanstalk:environment
         OptionName: EnvironmentType
         Value: LoadBalanced
 
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: LoadBalancerType
+        Value: application
+
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: ServiceRole
+        Value: !Ref ElasticBeanstalkServiceRole
+
         # AUTOSCALING OPTIONS
       - Namespace: aws:autoscaling:asg
         OptionName: MinSize
-        Value: 2
+        Value: !Ref AutoScalingMinInstanceCount
+
       - Namespace: aws:autoscaling:asg
         OptionName: MaxSize
-        Value: 6
+        Value: !Ref AutoScalingMaxInstanceCount
+
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: SecurityGroups
-        Value: !ImportValue
-          "Fn::Sub": "${NetworkStackName}-AppSecurityGroupID"
+        Value:
+          Fn::ImportValue: !Sub "${NetworkStackName}-AppSecurityGroupID"
+
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: SSHSourceRestriction
         Value:
@@ -149,30 +217,39 @@ Resources:
           - - 'tcp, 22, 22'
             - !ImportValue
                 "Fn::Sub": "${NetworkStackName}-BastionGroupID"
+
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: InstanceType
-        Value: !If [ CreateProdEnv, 't2.large', 't2.micro' ]
+        Value: !If [ CreateProdEnv, !Ref ProdInstanceType, !Ref DevInstanceType ]
+
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: IamInstanceProfile
         Value: !Ref AppInstanceProfile
+
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: EC2KeyName
         Value: !Ref EC2KeyPairName
+
       - Namespace: aws:autoscaling:updatepolicy:rollingupdate
         OptionName: RollingUpdateEnabled
         Value: true
+
       - Namespace: aws:autoscaling:updatepolicy:rollingupdate
         OptionName: RollingUpdateType
         Value: Health
+
       - Namespace: aws:autoscaling:trigger
         OptionName: MeasureName
         Value: CPUUtilization
+
       - Namespace: aws:autoscaling:trigger
         OptionName: Unit
         Value: Percent
+
       - Namespace: aws:autoscaling:trigger
         OptionName: UpperThreshold
         Value: 80
+
       - Namespace: aws:autoscaling:trigger
         OptionName: LowerThreshold
         Value: 40
@@ -180,8 +257,9 @@ Resources:
         # VPC OPTIONS (PLACEMENT OF RESOURCES IN SUBNETS)
       - Namespace: aws:ec2:vpc
         OptionName: VPCId
-        Value: !ImportValue
-          "Fn::Sub": "${NetworkStackName}-VpcID"
+        Value:
+          Fn::ImportValue: !Sub "${NetworkStackName}-VpcID"
+
       - Namespace: aws:ec2:vpc
         OptionName: Subnets
         Value:
@@ -191,6 +269,7 @@ Resources:
                 "Fn::Sub": "${NetworkStackName}-PrivateSubnet1ID"
             - !ImportValue
                 "Fn::Sub": "${NetworkStackName}-PrivateSubnet2ID"
+
       - Namespace: aws:ec2:vpc
         OptionName: ELBSubnets
         Value:
@@ -201,26 +280,50 @@ Resources:
             - !ImportValue
                 "Fn::Sub": "${NetworkStackName}-PublicSubnet2ID"
 
-        # LOAD BALANCER OPTIONS
-      - Namespace: aws:elb:loadbalancer
-        OptionName: CrossZone
-        Value: true
-      - Namespace: aws:elb:policies
-        OptionName: ConnectionDrainingEnabled
-        Value: true
-      - Namespace: aws:elb:loadbalancer
+      - Namespace: aws:elbv2:listener:default
+        OptionName: ListenerEnabled
+        Value: !If [ TlsEnabled, false, true ]
+
+      - Namespace: aws:elbv2:loadbalancer
         OptionName: SecurityGroups
-        Value: !ImportValue
-          "Fn::Sub": "${NetworkStackName}-ELBSecurityGroupID"
-      - Namespace: aws:elb:loadbalancer
+        Value:
+          Fn::ImportValue: !Sub "${NetworkStackName}-ELBSecurityGroupID"
+
+      - Namespace: aws:elbv2:loadbalancer
         OptionName: ManagedSecurityGroup
-        Value: !ImportValue
-          "Fn::Sub": "${NetworkStackName}-ELBSecurityGroupID"
+        Value:
+           Fn::ImportValue: !Sub "${NetworkStackName}-ELBSecurityGroupID"
+
+      - Namespace: aws:elbv2:listenerrule:default
+        OptionName: PathPatterns
+        Value: "/*"
+
+      - Namespace: !Sub
+        - "aws:elbv2:listener:${ListenPort}"
+        - ListenPort:
+            "Fn::ImportValue": !Sub "${NetworkStackName}-ELBIngressPort"
+        OptionName: Protocol
+        Value: !If [ TlsEnabled, HTTPS, HTTP ]
+
+      - Namespace: !Sub
+        - "aws:elbv2:listener:${ListenPort}"
+        - ListenPort:
+            "Fn::ImportValue": !Sub "${NetworkStackName}-ELBIngressPort"
+        OptionName: Rules
+        Value: default
+
+      - Namespace: !Sub
+        - "aws:elbv2:listener:${ListenPort}"
+        - ListenPort:
+            "Fn::ImportValue": !Sub "${NetworkStackName}-ELBIngressPort"
+        OptionName: SSLCertificateArns
+        Value: !Ref SSLCertificateArn
 
         # CLOUDWATCH LOGS
       - Namespace: aws:elasticbeanstalk:cloudwatch:logs
         OptionName: StreamLogs
         Value: true
+
       - Namespace: aws:elasticbeanstalk:cloudwatch:logs
         OptionName: DeleteOnTerminate
         Value: true
@@ -233,29 +336,34 @@ Resources:
       # ENVIRONMENT VARIABLES - NODE, RAILS
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_PASSWORD
-        Value: !ImportValue
-          "Fn::Sub": "${DatabaseStackName}-DatabasePassword"
+        Value:
+          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabasePassword"
+
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_USER
-        Value: !ImportValue
-          "Fn::Sub": "${DatabaseStackName}-DatabaseUser"
+        Value:
+          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseUser"
+
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_NAME
         Value: !Ref DatabaseName
+
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_HOST
-        Value: !ImportValue
-          "Fn::Sub": "${DatabaseStackName}-DatabaseURL"
+        Value:
+          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseURL"
 
       # ENVIRONMENT VARIABLES - SPRING
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: spring.datasource.password
-        Value: !ImportValue
-          "Fn::Sub": "${DatabaseStackName}-DatabasePassword"
+        Value:
+          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabasePassword"
+
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: spring.datasource.username
-        Value: !ImportValue
-          "Fn::Sub": "${DatabaseStackName}-DatabaseUser"
+        Value:
+          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseUser"
+
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: spring.datasource.url
         Value:
@@ -303,7 +411,6 @@ Resources:
       Path: /
       Roles:
       - !Ref AppRole
-
 
 Outputs:
 
