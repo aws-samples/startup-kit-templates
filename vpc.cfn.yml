@@ -235,6 +235,14 @@ Resources:
         IpProtocol: tcp
         ToPort: 80
         FromPort: 80
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: udp
+        ToPort: 123
+        FromPort: 123
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-BastionSecurityGroup"
