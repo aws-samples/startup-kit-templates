@@ -1,27 +1,28 @@
 # AWS Startup Kit Templates
 
-The AWS Startup Kit CloudFormation templates create stacks to support well-architected
-workloads on AWS. Components include a VPC, a bastion host, and optionally a relational
-database and AWS Elastic Beanstalk app.
+The AWS Startup Kit [CloudFormation](https://aws.amazon.com/cloudformation/) templates create stacks to
+help support [Well-Architected](https://aws.amazon.com/architecture/well-architected/)
+workloads on AWS. Components include a VPC, a [bastion host](https://en.wikipedia.org/wiki/Bastion_host), and optionally a relational
+database and/or an [AWS Elastic Beanstalk](https://aws.amazon.com/elasticbeanstalk/) application.
 
 The VPC template is the foundation for everything else. It creates a VPC that includes
 the following network resources:
-- Two public subnets.
-- Two private subnets.
-- A NAT Gateway to allow instances in private subnets to communicate with AWS services.
-- Two route tables, one for public subnets and the other for private subnets.
-- Security groups for an app, load balancer, database, and bastion host.
+- Two public subnets
+- Two private subnets
+- Single or redundant NAT Gateway(s) to allow instances in private subnets to communicate with AWS services
+- Two route tables, one for public subnets, and the other for private subnets
+- Security groups for an application, load balancer, database, and bastion host
 
-The bastion host is used to provide SSH access to instances with private IP addresses in
+The bastion host or jump server is used to provide SSH access to instances with private IP addresses in
 the application's security group.
 
-Optionally, a relational database can be created using the db.cfn.yml template. Either
-a MySQL or PostgreSQL database is created in the Amazon Relational Database Service
-(RDS), which automates much of the heavy lifting of database setup and maintenance.
-Following best practices, the database is created in private subnets concealed from the
-public Internet.  Similarly, the optional app template creates an Elastic Beanstalk app
-with application servers placed in private subnets while the load balancer in front of
-them is placed in public subnets.  The complete architecture is as follows:
+If desired, a relational database can be created using the [db.cfn.yml](db.cfn.yml) template. Either
+a MySQL or PostgreSQL database is created in the [Amazon Relational Database Service](https://aws.amazon.com/rds/)
+(RDS), which automates much of the heavy lifting of database setup and maintenance. Following best practices, the database is
+created in private subnets concealed from the public Internet.
+
+The optional [app.cfn.yml](app.cfn.yml) template creates an Elastic Beanstalk application with EC2 application servers
+placed in private subnets while the load balancer in front of them is placed in public subnets. The complete architecture is as follows:
 
 ![Architecture](images/architecture.png)
 
