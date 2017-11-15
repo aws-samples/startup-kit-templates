@@ -13,6 +13,9 @@
 log/
 target/
 
+# VIM
+*.swp
+
 # Mac
 .DS_Store
 .DS_Store?
