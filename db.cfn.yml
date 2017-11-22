@@ -38,7 +38,7 @@ Parameters:
     MaxLength: 30
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters.
-    
+
   DatabaseSize:
     Default: 5
     Type: String
@@ -46,22 +46,31 @@ Parameters:
     MinLength: 1
     AllowedPattern: "[5-9]|[1-9][0-9]+"
     ConstraintDescription: Enter a size of at least 5 GB
-    
+
   DatabaseEngine:
     Default: mysql
     Type: String
     Description: Database engine, MySQL or PostgreSQL
     ConstraintDescription: Choose an engine from the drop down
-    AllowedValues: 
+    AllowedValues:
       - mysql
       - postgres
-    
+
+  EncryptionAtRest:
+    Default: false
+    Type: String
+    Description: The optional flag for encryption at rest (db.t2.small and above)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
   DatabaseInstanceClass:
     Default: db.t2.micro
     Type: String
     Description: Database instance class, e.g. db.t2.micro (free tier)
     ConstraintDescription: Choose an instance class from the drop down
-    AllowedValues: 
+    AllowedValues:
       - db.t2.micro
       - db.t2.small
       - db.t2.medium
@@ -76,23 +85,21 @@ Parameters:
       - db.r3.2xlarge
       - db.r3.4xlarge
       - db.r3.8xlarge
-      
+
   EnvironmentName:
     Description: Environment name, either dev or prod.
     Type: String
     MinLength: 1
     MaxLength: 255
-    AllowedValues: 
+    AllowedValues:
       - dev
       - prod
     ConstraintDescription: Specify either dev or prod.
-    
 
-Conditions: 
+Conditions:
 
   CreateProdEnv: !Equals [ !Ref EnvironmentName, prod ]
-  
-      
+
 Resources:
 
   Database:
@@ -109,7 +116,8 @@ Resources:
       DBInstanceClass: !Ref DatabaseInstanceClass
       AllocatedStorage: !Ref DatabaseSize
       StorageType: gp2
-      MultiAZ: !If [ CreateProdEnv, 'true', 'false' ]
+      MultiAZ: !If [ CreateProdEnv, true, false ]
+      StorageEncrypted: !Ref EncryptionAtRest
 
   DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -146,5 +154,4 @@ Outputs:
     Value: !Ref DatabasePassword
     Export:
       Name: !Sub "${AWS::StackName}-DatabasePassword"
-    
-    
+
