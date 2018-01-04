@@ -1,9 +1,21 @@
+---
 AWSTemplateFormatVersion: '2010-09-09'
 
 # This VPC stack should be created first before any other
 # CloudFormation stacks, such as a bastion stack, database
 # stack and application stack
 Parameters:
+
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
   SSHFrom:
     Description: Limit SSH access to bastion hosts to a CIDR IP block
     Type: String
@@ -28,7 +40,7 @@ Parameters:
     Default: 80
 
   SingleNatGateway:
-    Description: Set to true to only install one NAT gateay
+    Description: Set to true to only install one NAT gateway
     Type: String
     ConstraintDescription: Value must be true or false
     Default: true
@@ -36,10 +48,32 @@ Parameters:
       - true
       - false
 
-Conditions:
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Region Availability Zones
+        Parameters:
+          - AvailabilityZone1
+          - AvailabilityZone2
+      - Label:
+          default: Ingress Ports
+        Parameters:
+          - ELBIngressPort
+          - AppIngressPort
+    ParameterLabels:
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      ELBIngressPort:
+        default: Load Balancer Port
+      AppIngressPort:
+        default: Application Port
 
-    CreateMultipleNatGateways: !Equals [ !Ref SingleNatGateway, false ]
-    CreateSingleNatGateway: !Equals [ !Ref SingleNatGateway, true ]
+Conditions:
+  CreateSingleNatGateway: !Equals [ !Ref SingleNatGateway, true ]
+  CreateMultipleNatGateways: !Not [ Condition: CreateSingleNatGateway ]
 
 Mappings:
 
@@ -52,9 +86,9 @@ Mappings:
     Public2:
       CIDR: 10.50.1.0/24
     Private1:
-      CIDR: 10.50.2.0/24
+      CIDR: 10.50.64.0/19
     Private2:
-      CIDR: 10.50.3.0/24
+      CIDR: 10.50.96.0/19
 
 Resources:
 
@@ -72,8 +106,8 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !FindInMap [CIDRMap, Public1, CIDR]
-      AvailabilityZone: !Select [ 0, "Fn::GetAZs": !Ref "AWS::Region"]
+      CidrBlock: !FindInMap [ CIDRMap, Public1, CIDR ]
+      AvailabilityZone: !Ref AvailabilityZone1
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PublicSubnet1"
@@ -82,8 +116,8 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !FindInMap [CIDRMap, Public2, CIDR]
-      AvailabilityZone: !Select [ 1, "Fn::GetAZs": !Ref "AWS::Region"]
+      CidrBlock: !FindInMap [ CIDRMap, Public2, CIDR ]
+      AvailabilityZone: !Ref AvailabilityZone2
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PublicSubnet2"
@@ -92,8 +126,8 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !FindInMap [CIDRMap, Private1, CIDR]
-      AvailabilityZone: !Select [ 0, "Fn::GetAZs": !Ref "AWS::Region"]
+      CidrBlock: !FindInMap [ CIDRMap, Private1, CIDR ]
+      AvailabilityZone: !Ref AvailabilityZone1
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet1"
@@ -102,8 +136,8 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !FindInMap [CIDRMap, Private2, CIDR]
-      AvailabilityZone: !Select [ 1, "Fn::GetAZs": !Ref "AWS::Region"]
+      CidrBlock: !FindInMap [ CIDRMap, Private2, CIDR ]
+      AvailabilityZone: !Ref AvailabilityZone2
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet2"

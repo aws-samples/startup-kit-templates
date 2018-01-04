@@ -1,7 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-# Database stack creation prerequisite:  First create a VPC stack - see README for more info
 Parameters:
 
   NetworkStackName:
@@ -40,23 +39,14 @@ Parameters:
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters.
 
-  DatabaseSize:
-    Default: 5
-    Type: String
-    Description: Database storage size in gigabytes (GB)
-    MinLength: 1
-    AllowedPattern: "[5-9]|[1-9][0-9]+"
-    ConstraintDescription: Enter a size of at least 5 GB
-
   DatabaseEngine:
-    Default: postgres
+    Default: aurora
     Type: String
-    Description: Database engines - PostgreSQL, MariaDB or MySQL
+    Description: Database engines - Aurora MySQL or Aurora PostgreSQL
     ConstraintDescription: Choose an engine from the drop down
     AllowedValues:
-      - postgres
-      - mariadb
-      - mysql
+      - aurora
+      - aurora-postgresql
 
   EncryptionAtRest:
     Default: false
@@ -68,23 +58,14 @@ Parameters:
       - false
 
   DatabaseInstanceClass:
-    Default: db.t2.micro
+    Default: db.t2.small
     Type: String
     Description: "Database instance class, e.g. db.t2.micro (free tier) - Engine support: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html"
     ConstraintDescription: DB instance class not supported
     AllowedValues:
-      - db.t2.micro
       - db.t2.small
       - db.t2.medium
-      - db.t2.large
       - db.t2.xlarge
-      - db.t2.2xlarge
-      - db.m4.large
-      - db.m4.xlarge
-      - db.m4.2xlarge
-      - db.m4.4xlarge
-      - db.m4.10xlarge
-      - db.m4.16xlarge
       - db.r4.large
       - db.r4.xlarge
       - db.r4.2xlarge
@@ -93,7 +74,7 @@ Parameters:
       - db.r4.16xlarge
 
   EnvironmentName:
-    Description: Environment name, either dev or prod.
+    Description: Environment name - dev or prod.
     Type: String
     Default: dev
     AllowedValues:
@@ -105,28 +86,55 @@ Conditions:
 
   IsProd: !Equals [ !Ref EnvironmentName, prod ]
 
+  IsAuroraMySQL: !Equals [ !Ref DatabaseEngine, aurora ]
+
 Resources:
 
-  Database:
-    Type: AWS::RDS::DBInstance
+  AuroraCluster:
+    Type: AWS::RDS::DBCluster
     Properties:
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      VPCSecurityGroups:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-DatabaseGroupID"
       Engine: !Ref DatabaseEngine
-      DBName: !Ref DatabaseName
       MasterUsername: !Ref DatabaseUser
       MasterUserPassword: !Ref DatabasePassword
-      DBInstanceClass: !Ref DatabaseInstanceClass
-      AllocatedStorage: !Ref DatabaseSize
-      StorageType: gp2
-      MultiAZ: !If [ IsProd, true, false ]
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
       StorageEncrypted: !Ref EncryptionAtRest
+      DatabaseName: !Ref DatabaseName
+      DBClusterParameterGroupName: !If [ IsAuroraMySQL,  default.aurora5.6, default.aurora-postgresql9.6 ]
+      Port: !If [ IsAuroraMySQL,  3306, 5432 ]
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-DatabaseGroupID"
+    DependsOn: DatabaseSubnetGroup
+
+  AuroraInstance0:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: !Ref DatabaseEngine
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      StorageEncrypted: !Ref EncryptionAtRest
+      DBParameterGroupName: !If [ IsAuroraMySQL,  default.aurora5.6, default.aurora-postgresql9.6 ]
       CopyTagsToSnapshot: true
       Tags:
       - Key: Name
         Value: !Ref "AWS::StackName"
-    DependsOn: DatabaseSubnetGroup
+    DependsOn: AuroraCluster
+
+  AuroraInstance1:
+    Type: AWS::RDS::DBInstance
+    Condition: IsProd
+    Properties:
+      Engine: !Ref DatabaseEngine
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      StorageEncrypted: !Ref EncryptionAtRest
+      DBParameterGroupName: !If [ IsAuroraMySQL,  default.aurora5.6, default.aurora-postgresql9.6 ]
+      CopyTagsToSnapshot: true
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+    DependsOn: AuroraCluster
 
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -141,27 +149,27 @@ Resources:
 
 Outputs:
 
-  RdsDbId:
-    Description: RDS Database ID
-    Value: !Ref Database
+  AuroraClusterId:
+    Description: Aurora Cluster ID
+    Value: !Ref AuroraCluster
     Export:
-      Name: !Sub "${AWS::StackName}-DatabaseID"
+      Name: !Sub "${AWS::StackName}-AuroraClusterID"
 
-  RdsDbURL:
-    Description: RDS Database URL
-    Value: !GetAtt Database.Endpoint.Address
+  AuroraDbURL:
+    Description: Aurora Database URL
+    Value: !GetAtt AuroraCluster.Endpoint.Address
     Export:
       Name: !Sub "${AWS::StackName}-DatabaseURL"
+
+  AuroraReadDbURL:
+    Description: Aurora Database Read URL
+    Value: !GetAtt AuroraCluster.ReadEndpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseReadURL"
 
   DbUser:
     Description: RDS Database admin account user
     Value: !Ref DatabaseUser
     Export:
       Name: !Sub "${AWS::StackName}-DatabaseUser"
-
-  DbPassword:
-    Description: RDS Database admin account password
-    Value: !Ref DatabasePassword
-    Export:
-      Name: !Sub "${AWS::StackName}-DatabasePassword"
 
