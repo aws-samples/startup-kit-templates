@@ -1,8 +1,6 @@
 # AWS Startup Kit Templates
 
-The AWS Startup Kit [CloudFormation](https://aws.amazon.com/cloudformation/) templates create stacks to
-help support [Well-Architected](https://aws.amazon.com/architecture/well-architected/)
-workloads on AWS. Components include a VPC, a [bastion host](https://en.wikipedia.org/wiki/Bastion_host), and optionally a relational
+The AWS Startup Kit [CloudFormation](https://aws.amazon.com/cloudformation/) templates create stacks to help with getting started on AWS. Components include a VPC, a [bastion host](https://en.wikipedia.org/wiki/Bastion_host), and optionally a relational
 database and/or an [AWS Elastic Beanstalk](https://aws.amazon.com/elasticbeanstalk/) application.
 
 The VPC template is the foundation for everything else. It creates a VPC that includes
