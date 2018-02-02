@@ -19,7 +19,7 @@ a MySQL or PostgreSQL database is created in the [Amazon Relational Database Ser
 (RDS), which automates much of the heavy lifting of database setup and maintenance. Following best practices, the database is
 created in private subnets concealed from the public Internet.
 
-The optional [app.cfn.yml](app.cfn.yml) template creates an Elastic Beanstalk application with EC2 application servers
+The optional [app.cfn.yml](templates/app.cfn.yml) template creates an Elastic Beanstalk application with EC2 application servers
 placed in private subnets while the load balancer in front of them is placed in public subnets. The complete architecture is as follows:
 
 ![Architecture](images/architecture.png)
@@ -142,5 +142,124 @@ instances.
 - Application instances, such as RESTful API servers or web servers, should be
 assigned to the "AppSecurityGroup" so they can talk to the database as
 well as the load balancer, and receive SSH traffic from the bastion host.
+
+
+### Deploy
+
+New services are not always available in all AWS Regions when they are released. Please consult the
+[Region Table](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/) for
+more information.
+
+Deploy | Region Name | Region | VPC | Bastion | DB | Fargate | Elastic Beanstalk
+:---: | ------------ | ------------- | ------------- | ------------- | -------------  | ------------- | -------------
+[🚀 ][us-east-1-vpc] | US East (N. Virginia) | us-east-1 | 👍  ||||
+[🚀 ][us-east-1-vpc-bastion] | US East (N. Virginia) | us-east-1 | 👍  | 👍 |||
+[🚀 ][us-east-1-vpc-bastion-fargate] | US East (N. Virginia) | us-east-1 | 👍  | 👍  || 👍  ||
+[🚀 ][us-east-1-vpc-bastion-fargate-rds] | US East (N. Virginia) | us-east-1 | 👍  | 👍  | 👍  | 👍  ||
+[🚀 ][us-east-1-vpc-bastion-eb-rds] | US East (N. Virginia) | us-east-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][us-east-2-vpc] | US East (Ohio) | us-east-2 | 👍  ||||
+[🚀 ][us-east-2-vpc-bastion] | US East (Ohio) | us-east-2 | 👍  | 👍 |||
+[🚀 ][us-east-2-vpc-bastion-eb-rds] | US East (Ohio) | us-east-2 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][us-west-1-vpc] | US West (N. California) | us-west-1 | 👍  ||||
+[🚀 ][us-west-1-vpc-bastion] | US West (N. California) | us-west-1 | 👍  | 👍 |||
+[🚀 ][us-west-1-vpc-bastion-eb-rds] | US West (N. California) | us-west-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][us-west-2-vpc] | US West (Oregon) | us-west-2 | 👍  ||||
+[🚀 ][us-west-2-vpc-bastion] | US West (Oregon) | us-west-2 | 👍  | 👍 |||
+[🚀 ][us-west-2-vpc-bastion-eb-rds] | US West (Oregon) | us-west-2 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][ca-central-1-vpc] | Canada (Central) | ca-central-1 | 👍  ||||
+[🚀 ][ca-central-1-vpc-bastion] | Canada (Central) | ca-central-1 | 👍  | 👍 |||
+[🚀 ][ca-central-1-vpc-bastion-eb-rds] | Canada (Central) | ca-central-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][sa-east-1-vpc] | S. America (São Paulo) | sa-east-1 | 👍  ||||
+[🚀 ][sa-east-1-vpc-bastion] | S. America (São Paulo) | sa-east-1 | 👍  | 👍 |||
+[🚀 ][sa-east-1-vpc-bastion-eb-rds] | S. America (São Paulo) | sa-east-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][eu-west-1-vpc] | EU (Ireland) | eu-west-1 | 👍  ||||
+[🚀 ][eu-west-1-vpc-bastion] | EU (Ireland) | eu-west-1 | 👍  | 👍 |||
+[🚀 ][eu-west-1-vpc-bastion-eb-rds] | EU (Ireland) | eu-west-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][eu-west-2-vpc] | EU (London) | eu-west-2 | 👍  ||||
+[🚀 ][eu-west-2-vpc-bastion] | EU (London) | eu-west-2 | 👍  | 👍 |||
+[🚀 ][eu-west-2-vpc-bastion-eb-rds] | EU (London) | eu-west-2 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][eu-west-3-vpc] | EU (Paris) | eu-west-3 | 👍  ||||
+[🚀 ][eu-west-3-vpc-bastion] | EU (Paris) | eu-west-3 | 👍  | 👍 |||
+[🚀 ][eu-west-3-vpc-bastion-eb-rds] | EU (Paris) | eu-west-3 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][eu-central-1-vpc] | EU (Frankfurt) | eu-central-1 | 👍  ||||
+[🚀 ][eu-central-1-vpc-bastion] | EU (Frankfurt) | eu-central-1 | 👍  | 👍 |||
+[🚀 ][eu-central-1-vpc-bastion-eb-rds] | EU (Frankfurt) | eu-central-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][ap-northeast-1-vpc] | Asia Pacific (Tokyo) | ap-northeast-1 | 👍  ||||
+[🚀 ][ap-northeast-1-vpc-bastion] | Asia Pacific (Tokyo) | ap-northeast-1 | 👍  | 👍 |||
+[🚀 ][ap-northeast-1-vpc-bastion-eb-rds] | Asia Pacific (Tokyo) | ap-northeast-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][ap-northeast-2-vpc] | Asia Pacific (Seoul) | ap-northeast-2 | 👍  ||||
+[🚀 ][ap-northeast-2-vpc-bastion] | Asia Pacific (Seoul) | ap-northeast-2 | 👍  | 👍 |||
+[🚀 ][ap-northeast-2-vpc-bastion-eb-rds] | Asia Pacific (Seoul) | ap-northeast-2 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][ap-south-1-vpc] | Asia Pacific (Mumbai) | ap-south-1 | 👍  ||||
+[🚀 ][ap-south-1-vpc-bastion] | Asia Pacific (Mumbai) | ap-south-1 | 👍  | 👍 |||
+[🚀 ][ap-south-1-vpc-bastion-eb-rds] | Asia Pacific (Mumbai) | ap-south-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][ap-southeast-1-vpc] | Asia Pacific (Singapore) | ap-southeast-1 | 👍  ||||
+[🚀 ][ap-southeast-1-vpc-bastion] | Asia Pacific (Singapore) | ap-southeast-1 | 👍  | 👍 |||
+[🚀 ][ap-southeast-1-vpc-bastion-eb-rds] | Asia Pacific (Singapore) | ap-southeast-1 | 👍  | 👍  | 👍  || 👍   |
+[🚀 ][ap-southeast-2-vpc] | Asia Pacific (Sydney) | ap-southeast-2 | 👍  ||||
+[🚀 ][ap-southeast-2-vpc-bastion] | Asia Pacific (Sydney) | ap-southeast-2 | 👍  | 👍 |||
+[🚀 ][ap-southeast-2-vpc-bastion-eb-rds] | Asia Pacific (Sydney) | ap-southeast-2 | 👍  | 👍  | 👍  || 👍   |
+
+[us-east-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[us-east-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[us-east-1-vpc-bastion-fargate]: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-fargate.cfn.yml
+[us-east-1-vpc-bastion-fargate-rds]: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-fargate-rds.cfn.yml
+[us-east-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[us-east-2-vpc]: https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[us-east-2-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[us-east-2-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[us-west-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[us-west-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[us-west-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[us-west-2-vpc]: https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[us-west-2-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[us-west-2-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[sa-east-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=sa-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[sa-east-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=sa-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[sa-east-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=sa-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[eu-west-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[eu-west-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[eu-west-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[eu-west-2-vpc]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[eu-west-2-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[eu-west-2-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[eu-west-3-vpc]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-3#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[eu-west-3-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-3#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[eu-west-3-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=eu-west-3#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[eu-central-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[eu-central-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[eu-central-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[ap-south-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[ap-south-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[ap-south-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[ap-northeast-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[ap-northeast-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[ap-northeast-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[ap-northeast-2-vpc]: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[ap-northeast-2-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[ap-northeast-2-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[ap-southeast-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[ap-southeast-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[ap-southeast-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[ap-southeast-2-vpc]: https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[ap-southeast-2-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[ap-southeast-2-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
+
+[ca-central-1-vpc]: https://console.aws.amazon.com/cloudformation/home?region=ca-central-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc.cfn.yml
+[ca-central-1-vpc-bastion]: https://console.aws.amazon.com/cloudformation/home?region=ca-central-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion.cfn.yml
+[ca-central-1-vpc-bastion-eb-rds]: https://console.aws.amazon.com/cloudformation/home?region=ca-central-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v1/vpc-bastion-eb-rds.cfn.yml
 
 

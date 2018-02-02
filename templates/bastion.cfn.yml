@@ -5,6 +5,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 # bastion, see the following AWS blog post:
 # https://aws.amazon.com/blogs/security/securely-connect-to-linux-instances-running-in-a-private-amazon-vpc/
 
+Description: Bastion
+
+
 Parameters:
 
   NetworkStackName:
@@ -39,33 +42,35 @@ Mappings:
   # Note: This has not been tested with Amazon Linux 2
   AMIMap:
     ap-northeast-1:
-      AMI: ami-da9e2cbc
+      AMI: ami-ceafcba8
     ap-northeast-2:
-      AMI: ami-1196317f
+      AMI: ami-863090e8
     ap-south-1:
-      AMI: ami-d5c18eba
+      AMI: ami-531a4c3c
     ap-southeast-1:
-      AMI: ami-c63d6aa5
+      AMI: ami-68097514
     ap-southeast-2:
-      AMI: ami-ff4ea59d
+      AMI: ami-942dd1f6
     eu-west-1:
-      AMI: ami-1a962263
+      AMI: ami-d834aba1
     eu-west-2:
-      AMI: ami-e7d6c983
+      AMI: ami-403e2524
+    eu-west-3:
+      AMI: ami-8ee056f3
     eu-central-1:
-      AMI: ami-bf2ba8d0
+      AMI: ami-5652ce39
     sa-east-1:
-      AMI: ami-286f2a44
+      AMI: ami-84175ae8
     us-east-1:
-      AMI: ami-55ef662f
+      AMI: ami-97785bed
     us-east-2:
-      AMI: ami-15e9c770
+      AMI: ami-f63b1193
     us-west-1:
-      AMI: ami-a51f27c5
+      AMI: ami-824c4ee2
     us-west-2:
-      AMI: ami-bf4193c7
+      AMI: ami-f2d3638a
     ca-central-1:
-      AMI: ami-d29e25b6
+      AMI: ami-a954d1cd
 
 Resources:
 
@@ -307,6 +312,12 @@ Resources:
         ComparisonOperator: GreaterThanThreshold
 
 Outputs:
+
+  Name:
+    Description: Bastion Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
 
   BastionEip:
     Description: EIP for bastion host
