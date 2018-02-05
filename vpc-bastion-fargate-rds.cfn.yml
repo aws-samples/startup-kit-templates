@@ -1,0 +1,558 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+
+Description: VPC + Bastion + Fargaate + Database
+
+
+Parameters:
+
+  TemplateBucket:
+    Type: String
+    Default: awslabs-startup-kit-templates-deploy-v1
+    Description: The template bucket for the CloudFormation templates
+
+  # vpc.cfn.yml parameters
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  SSHFrom:
+    Description: Limit SSH access to bastion hosts to a CIDR IP block
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+
+  ELBIngressPort:
+    Description: The ELB ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  AppIngressPort:
+    Description: The application ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  # bastion.cfn.yml parameters
+  KeyName:
+    Description: EC2 key pair name for bastion host SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+
+  LogRetentionInDays:
+    Description: Number of days you would like your CloudWatch Logs to be retained
+    Type: Number
+    Default: 90
+
+  # For more information on the google-authenticator PAM module, see: https://github.com/google/google-authenticator-libpam
+  MFA:
+    Description: Set to true to install MFA using the google-authenticator PAM module on your bastion host
+    Type: String
+    ConstraintDescription: Value must be true or false
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+  # fargate.cfn.yml parameters
+  HostedZoneName:
+    Type: String
+    Description: The optional Amazon Route 53 Hosted Zone Name for the optional load balancer alias record - do not include a period at the end
+    Default: ""
+    AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
+    ConstraintDescription: Please enter a valid Route 53 Hosted Zone Name
+
+  LoadBalancerDomainName:
+    Type: String
+    Description: Optional domain name to create an Amazon Route 53 alias record for the load balancer
+    Default: ""
+    AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
+    ConstraintDescription: Please enter a valid domain name
+
+  AppProtocol:
+    Type: String
+    Description: The application server protocol
+    Default: HTTP
+    AllowedValues:
+      - HTTP
+      - HTTPS
+    ConstraintDescription: Specify either HTTTP or HTTPS
+
+  SSLCertificateArn:
+    Type: String
+    Description: The optional SSL/TLS certificate ARN
+    MinLength: 0
+    MaxLength: 2048
+    Default: ""
+
+  HealthCheckPath:
+    Type: String
+    Description: The path for the Application Load Balancer health check
+    Default: /
+    MinLength: 1
+    MaxLength: 255
+    ConstraintDescription: Value must be between 1 and 255 characters
+
+  GitHubSourceRepo:
+    Type: String
+    Description: GitHub source repository - must contain a Dockerfile in the base
+
+  GitHubBranch:
+    Type: String
+    Default: master
+    Description: GitHub repository branch to trigger builds
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: "GitHub API token - see: https://github.com/blog/1509-personal-api-tokens"
+
+  GitHubUser:
+    Type: String
+    Description: GitHub username
+
+  CodeBuildDockerImage:
+    Type: String
+    Default: aws/codebuild/docker:17.09.0
+
+  SeedDockerImage:
+    Type: String
+    Default: registry.hub.docker.com/library/nginx:1.13
+    Description: The initial image, before the GitHub repo above is deployed. Existing application images in ECR should override this parameter
+
+  DefaultContainerCpu:
+    Type: Number
+    Description: "Amount of CPU for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 256
+    MinValue: 256
+    MaxValue: 4096
+    ConstraintDescription: "Value must be between 256 and 4096 - see: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#task_size"
+
+  DefaultContainerMemory:
+    Type: Number
+    Description: "Amount of memory for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 512
+    MinValue: 512
+    MaxValue: 30720
+    ConstraintDescription: "Value must be between 512 and 30720 - see: https://aws.amazon.com/fargate/pricing/"
+
+  DefaultServiceCpuScaleUpThreshold:
+    Type: Number
+    Description: Average CPU % value to trigger auto scaling up
+    Default: 50
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: Value must be between 0 and 100
+
+  DefaultServiceCpuScaleDownThreshold:
+    Type: Number
+    Description: Average CPU % value to trigger auto scaling down
+    Default: 25
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: Value must be between 0 and 100
+
+  DefaultTaskMinContainerCount:
+    Type: Number
+    Description: Minimum number of containers to run for the service
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Value must be at least one
+
+  DefaultTaskMaxContainerCount:
+    Type: Number
+    Description: Maximum number of containers to run for the service when auto scaling up
+    Default: 2
+    MinValue: 1
+    ConstraintDescription: Value must be at least one
+
+  ContainerLogRetentionInDays:
+    Type: Number
+    Default: 7
+    Description: Number of days to retain container logs
+
+  MaxTaggedContainerImagesToRetain:
+    Type: Number
+    Description: The number of tagged container images to retain before expiring
+    MinValue: 1
+    MaxValue: 100
+    ConstraintDescription: Value must be between 1 and 100
+    Default: 20
+
+  DaysToRetainUntaggedContainerImages:
+    Type: Number
+    Description: The number days to retain untagged container images before expiring
+    MinValue: 1
+    MaxValue: 100
+    ConstraintDescription: Value must be between 1 and 100
+    Default: 7
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
+
+  # aurora.cfn.yml and/or db.cfn.yml parameters
+  DatabaseUser:
+    Default: startupadmin
+    Type: String
+    Description: Database admin account name
+    MinLength: 5
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+
+  DatabasePassword:
+    NoEcho: true
+    Type: String
+    Description: Database admin account password
+    MinLength: 6
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters
+
+  DatabaseName:
+    Default: StartupDB
+    Type: String
+    Description: Database name
+    MinLength: 1
+    MaxLength: 30
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+
+  DatabaseEngine:
+    Default: aurora
+    Type: String
+    Description: Database engines - Aurora MySQL, Aurora PostgreSQL, PostgreSQL, MariaDB and MySQL
+    ConstraintDescription: Choose an engine from the drop down
+    AllowedValues:
+      - aurora
+      - aurora-postgresql
+      - postgres
+      - mariadb
+      - mysql
+
+  EncryptionAtRest:
+    Default: false
+    Type: String
+    Description: The optional flag for encryption at rest (db.t2.small and above)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
+  DatabaseSize:
+    Default: 5
+    Type: String
+    Description: Database storage size in gigabytes (GB) - Not applicable for Aurora
+    MinLength: 1
+    AllowedPattern: "[5-9]|[1-9][0-9]+"
+    ConstraintDescription: Enter a size of at least 5 GB
+
+  DatabaseInstanceClass:
+    Default: db.t2.small
+    Type: String
+    Description: "Database instance class, e.g. db.t2.micro (free tier) - Engine support: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html"
+    ConstraintDescription: DB instance class not supported
+    AllowedValues:
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+      - db.t2.xlarge
+      - db.t2.2xlarge
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m4.4xlarge
+      - db.m4.10xlarge
+      - db.m4.16xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Environment
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: Region Availability Zones
+        Parameters:
+          - AvailabilityZone1
+          - AvailabilityZone2
+      - Label:
+          default: Bastion
+        Parameters:
+          - KeyName
+          - LogRetentionInDays
+          - MFA
+          - SSHFrom
+      - Label:
+          default: Database
+        Parameters:
+          - DatabaseEngine
+          - DatabaseInstanceClass
+          - DatabaseUser
+          - DatabasePassword
+          - DatabaseName
+          - DatabaseSize
+          - EncryptionAtRest
+      - Label:
+          default: Application Global
+        Parameters:
+          - AppIngressPort
+          - AppProtocol
+      - Label:
+          default: Initial Service
+        Parameters:
+          - HealthCheckPath
+          - DefaultContainerCpu
+          - DefaultContainerMemory
+          - DefaultServiceCpuScaleUpThreshold
+          - DefaultServiceCpuScaleDownThreshold
+          - DefaultTaskMinContainerCount
+          - DefaultTaskMaxContainerCount
+          - ContainerLogRetentionInDays
+      - Label:
+          default: Load Balancer
+        Parameters:
+          - ELBIngressPort
+          - HostedZoneName
+          - LoadBalancerDomainName
+          - SSLCertificateArn
+      - Label:
+          default: Initial Service CI/CD
+        Parameters:
+          - CodeBuildDockerImage
+          - SeedDockerImage
+          - GitHubUser
+          - GitHubToken
+          - GitHubSourceRepo
+          - GitHubBranch
+      - Label:
+          default: Elastic Container Registry
+        Parameters:
+          - MaxTaggedContainerImagesToRetain
+          - DaysToRetainUntaggedContainerImages
+    ParameterLabels:
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      ELBIngressPort:
+        default: Port
+      AppIngressPort:
+        default: Port
+      AppProtocol:
+        default: Protocol
+      KeyName:
+        default: EC2 Key Pair
+      LogRetentionInDays:
+        default: Log Retention
+      MFA:
+        default: Multi-Factor
+      SSHFrom:
+        default: SSH Whitelist
+      TemplateBucket:
+        default: CloudFormation Bucket
+      EnvironmentName:
+        default: Environment
+      MaxTaggedContainerImagesToRetain:
+        default: Tagged Images Max
+      DaysToRetainUntaggedContainerImages:
+        default: Untagged Images
+      GitHubSourceRepo:
+        default: GitHub Repo
+      GitHubBranch:
+        default: GitHub Branch
+      GitHubUser:
+        default: GitHub User
+      GitHubToken:
+        default: GitHub Token
+      HealthCheckPath:
+        default: Health Check Path
+      DefaultContainerCpu:
+        default: CPU
+      DefaultContainerMemory:
+        default: Memory
+      DefaultServiceCpuScaleUpThreshold:
+        default: Scale Up CPU
+      DefaultServiceCpuScaleDownThreshold:
+        default: Scale Down CPU
+      DefaultTaskMinContainerCount:
+        default: Min Containers
+      DefaultTaskMaxContainerCount:
+        default: Max Containers
+      ContainerLogRetentionInDays:
+        default: Log Retention
+      HostedZoneName:
+        default: Hosted Zone
+      LoadBalancerDomainName:
+        default: Domain
+      SSLCertificateArn:
+        default: SSL Certificate
+      SeedDockerImage:
+        default: Initial Image
+      CodeBuildDockerImage:
+        default: CodeBuild Image
+      DatabaseUser:
+        default: User
+      DatabasePassword:
+        default: Password
+      DatabaseName:
+        default: Name
+      DatabaseSize:
+        default: Size
+      DatabaseEngine:
+        default: Engine
+      EncryptionAtRest:
+        default: Encryption at Rest
+      DatabaseInstanceClass:
+        default: Instance Type
+
+Conditions:
+
+   IsProd: !Equals [ !Ref EnvironmentName, prod ]
+
+   IsAurora: !Or [ !Equals [ !Ref DatabaseEngine, aurora ], !Equals [ !Ref DatabaseEngine, aurora-postgresql ] ]
+
+   IsNotAurora: !Not [ Condition: IsAurora ]
+
+Resources:
+
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/vpc.cfn.yml
+      Parameters:
+        AvailabilityZone1: !Ref AvailabilityZone1
+        AvailabilityZone2: !Ref AvailabilityZone2
+        SSHFrom: !Ref SSHFrom
+        ELBIngressPort: !Ref ELBIngressPort
+        AppIngressPort: !Ref AppIngressPort
+        SingleNatGateway: !If [ IsProd, false, true ]
+
+  BastionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/bastion.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        KeyName: !Ref KeyName
+        LogRetentionInDays: !Ref LogRetentionInDays
+        MFA: !Ref MFA
+    DependsOn: VpcStack
+
+  AuroraStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsAurora
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/aurora.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        EnvironmentName: !Ref EnvironmentName
+        DatabaseEngine: !Ref DatabaseEngine
+        DatabaseInstanceClass: !Ref DatabaseInstanceClass
+        DatabaseUser: !Ref DatabaseUser
+        DatabasePassword: !Ref DatabasePassword
+        DatabaseName: !Ref DatabaseName
+        EncryptionAtRest: !Ref EncryptionAtRest
+    DependsOn: VpcStack
+
+  RdsStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsNotAurora
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/db.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        EnvironmentName: !Ref EnvironmentName
+        DatabaseEngine: !Ref DatabaseEngine
+        DatabaseInstanceClass: !Ref DatabaseInstanceClass
+        DatabaseUser: !Ref DatabaseUser
+        DatabasePassword: !Ref DatabasePassword
+        DatabaseName: !Ref DatabaseName
+        EncryptionAtRest: !Ref EncryptionAtRest
+        DatabaseSize: !Ref DatabaseSize
+    DependsOn: VpcStack
+
+  FargateStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/fargate.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        DatabaseStackName:  !If [ IsAurora, !GetAtt AuroraStack.Outputs.Name, !GetAtt RdsStack.Outputs.Name ]
+        HostedZoneName: !Ref HostedZoneName
+        LoadBalancerDomainName: !Ref LoadBalancerDomainName
+        AppProtocol: !Ref AppProtocol
+        SSLCertificateArn: !Ref SSLCertificateArn
+        HealthCheckPath: !Ref HealthCheckPath
+        GitHubSourceRepo: !Ref GitHubSourceRepo
+        GitHubBranch: !Ref GitHubBranch
+        GitHubToken: !Ref GitHubToken
+        GitHubUser: !Ref GitHubUser
+        CodeBuildDockerImage: !Ref CodeBuildDockerImage
+        SeedDockerImage: !Ref SeedDockerImage
+        DefaultContainerCpu: !Ref DefaultContainerCpu
+        DefaultContainerMemory: !Ref DefaultContainerMemory
+        DefaultServiceCpuScaleUpThreshold: !Ref DefaultServiceCpuScaleUpThreshold
+        DefaultServiceCpuScaleDownThreshold: !Ref DefaultServiceCpuScaleDownThreshold
+        DefaultTaskMinContainerCount: !Ref DefaultTaskMinContainerCount
+        DefaultTaskMaxContainerCount: !Ref DefaultTaskMaxContainerCount
+        ContainerLogRetentionInDays: !Ref ContainerLogRetentionInDays
+        MaxTaggedContainerImagesToRetain: !Ref MaxTaggedContainerImagesToRetain
+        DaysToRetainUntaggedContainerImages: !Ref DaysToRetainUntaggedContainerImages
+        EnvironmentName: !Ref EnvironmentName
+
+Outputs:
+
+  VpcStackName:
+    Value: !GetAtt VpcStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcStackName
+
+  BastionStackName:
+    Value: !GetAtt BastionStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-BastionStackName
+
+  FargateStackName:
+    Value: !GetAtt FargateStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-FargateStackName
+
+  AuroraStackName:
+    Value: !GetAtt AuroraStack.Outputs.Name
+    Condition: IsAurora
+    Export:
+      Name: !Sub ${AWS::StackName}-DatabaseStackName
+
+  RdsStackName:
+    Value: !GetAtt RdsStack.Outputs.Name
+    Condition: IsNotAurora
+    Export:
+      Name: !Sub ${AWS::StackName}-DatabaseStackName
+

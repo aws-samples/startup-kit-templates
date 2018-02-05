@@ -3,17 +3,19 @@ Description:  AWS Elastic Beanstalk app - built by AWS Startup Kit
 
 # App stack creation prerequisites:  first create a VPC stack, then a DB stack.
 
+Description: Elastic Beanstalk
+
 Parameters:
 
   ApplicationName:
-    Description: Name of your application.
+    Description: Name of your application
     Type: String
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
   StackType:
-    Description: node, rails, python, python3 or spring.
+    Description: node, rails, python, python3 or spring
     Type: String
     MinLength: 1
     MaxLength: 255
@@ -23,7 +25,7 @@ Parameters:
       - spring
       - python
       - python3
-    ConstraintDescription: Specify node, rails, python, python3 or spring.
+    ConstraintDescription: Specify node, rails, python, python3 or spring
 
   EnvironmentName:
     Description: Environment name, either dev or prod.
@@ -33,17 +35,17 @@ Parameters:
     AllowedValues:
       - dev
       - prod
-    ConstraintDescription: Specify either dev or prod.
+    ConstraintDescription: Specify either dev or prod
 
   NetworkStackName:
-    Description: Name of an active CloudFormation stack of networking resources.
+    Description: Name of an active CloudFormation stack of networking resources
     Type: String
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
   DatabaseStackName:
-    Description: Name of an active CloudFormation stack of database resources.
+    Description: Name of an active CloudFormation stack of database resources
     Type: String
     MinLength: 1
     MaxLength: 255
@@ -56,6 +58,15 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
+  DatabasePassword:
+    NoEcho: true
+    Type: String
+    Description: Database admin account password
+    MinLength: 6
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters
+
   AppS3Bucket:
     Description: S3 Bucket containing your application package.
     Type: String
@@ -63,16 +74,14 @@ Parameters:
     MaxLength: 255
 
   AppS3Key:
-    Description: S3 Bucket key for your application package.
+    Description: S3 Bucket key for your application package
     Type: String
     MinLength: 1
     MaxLength: 255
 
   EC2KeyPairName:
-    Description: EC2 key pair name for SSH access.
-    Type: String
-    MinLength: 1
-    MaxLength: 255
+    Description: EC2 key pair name for SSH access
+    Type: AWS::EC2::KeyPair::KeyName
 
   DevInstanceType:
     Description: The instance type for the dev environment
@@ -121,15 +130,15 @@ Mappings:
   # Maps stack type parameter to solution stack name string
   StackMap:
     node:
-      stackName: 64bit Amazon Linux 2017.03 v4.3.0 running Node.js
+      stackName: 64bit Amazon Linux 2017.09 v4.4.4 running Node.js
     rails:
-      stackName: 64bit Amazon Linux 2017.03 v2.4.4 running Ruby 2.3 (Puma)
+      stackName: 64bit Amazon Linux 2017.09 v2.6.5 running Ruby 2.4 (Puma)
     spring:
-      stackName: 64bit Amazon Linux 2017.03 v2.6.4 running Tomcat 8 Java 8
+      stackName: 64bit Amazon Linux 2017.09 v2.7.5 running Tomcat 8 Java 8
     python:
-      stackName: 64bit Amazon Linux 2017.03 v2.5.1 running Python 2.7
+      stackName: 64bit Amazon Linux 2017.09 v2.6.4 running Python 2.7
     python3:
-      stackName: 64bit Amazon Linux 2017.03 v2.5.1 running Python 3.4
+      stackName: 64bit Amazon Linux 2017.09 v2.6.4 running Python 3.6
 
 Resources:
 
@@ -331,18 +340,17 @@ Resources:
       # ENVIRONMENT VARIABLES - COMMON TO ALL STACKS
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: AWS_REGION
-        Value: !Ref "AWS::Region"
+        Value: !Ref AWS::Region
 
-      # ENVIRONMENT VARIABLES - NODE, RAILS
+          # ENVIRONMENT VARIABLES - NODE, RAILS - Move to parameter store
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_PASSWORD
-        Value:
-          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabasePassword"
+        Value: !Ref DatabasePassword
 
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_USER
         Value:
-          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseUser"
+          Fn::ImportValue: !Sub ${DatabaseStackName}-DatabaseUser
 
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: DB_NAME
@@ -356,8 +364,7 @@ Resources:
       # ENVIRONMENT VARIABLES - SPRING
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: spring.datasource.password
-        Value:
-          Fn::ImportValue: !Sub "${DatabaseStackName}-DatabasePassword"
+        Value: !Ref DatabasePassword
 
       - Namespace: aws:elasticbeanstalk:application:environment
         OptionName: spring.datasource.username
@@ -413,6 +420,12 @@ Resources:
       - !Ref AppRole
 
 Outputs:
+
+  Name:
+    Description: Elastic Beanstalk Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
 
   EnvironmentURL:
     Description: Environment URL

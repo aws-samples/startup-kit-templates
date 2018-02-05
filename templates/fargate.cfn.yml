@@ -20,6 +20,9 @@ AWSTemplateFormatVersion: 2010-09-09
 # This template is released under Apache Version 2.0, and can be forked, copied, modified,
 # customized, etc. to match your application/system requirements.
 
+Description: Fargate
+
+
 Parameters:
 
   NetworkStackName:
@@ -387,7 +390,6 @@ Resources:
   EcrDockerRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Ref AWS::StackName
       LifecyclePolicy:
         LifecyclePolicyText: !Sub
           - |
@@ -715,6 +717,12 @@ Resources:
 
 
 Outputs:
+
+  Name:
+    Description: Fargate Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
 
   EcrDockerRepositoryName:
     Value: !Ref EcrDockerRepository

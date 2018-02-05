@@ -1,7 +1,8 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: VPC
+
+Description: VPC + Bastion
 
 
 Parameters:
@@ -44,6 +45,25 @@ Parameters:
     ConstraintDescription: TCP ports must be between 0 - 65535
     Default: 80
 
+  KeyName:
+    Description: EC2 key pair name for bastion host SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+
+  LogRetentionInDays:
+    Description: Number of days you would like your CloudWatch Logs to be retained
+    Type: Number
+    Default: 90
+
+  # For more information on the google-authenticator PAM module, see: https://github.com/google/google-authenticator-libpam
+  MFA:
+    Description: Set to true to install MFA using the google-authenticator PAM module on your bastion host
+    Type: String
+    ConstraintDescription: Value must be true or false
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
   EnvironmentName:
     Type: String
     Description: Environment name - dev or prod
@@ -70,6 +90,13 @@ Metadata:
         Parameters:
           - ELBIngressPort
           - AppIngressPort
+      - Label:
+          default: Bastion
+        Parameters:
+          - KeyName
+          - LogRetentionInDays
+          - MFA
+          - SSHFrom
     ParameterLabels:
       AvailabilityZone1:
         default: Availability Zone 1
@@ -85,6 +112,14 @@ Metadata:
         default: CloudFormation Bucket
       EnvironmentName:
         default: Environment
+      KeyName:
+        default: EC2 Key Pair
+      LogRetentionInDays:
+        default: Log Retention
+      MFA:
+        default: Multi-Factor
+      SSHFrom:
+        default: SSH Whitelist
 
 
 Conditions:
@@ -106,6 +141,17 @@ Resources:
         AppIngressPort: !Ref AppIngressPort
         SingleNatGateway: !If [ IsProd, false, true ]
 
+  BastionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/bastion.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        KeyName: !Ref KeyName
+        LogRetentionInDays: !Ref LogRetentionInDays
+        MFA: !Ref MFA
+    DependsOn: VpcStack
+
 
 Outputs:
 
@@ -113,5 +159,10 @@ Outputs:
     Value: !GetAtt VpcStack.Outputs.Name
     Export:
       Name: !Sub ${AWS::StackName}-VpcStackName
+
+  BastionStackName:
+    Value: !GetAtt BastionStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-BastionStackName
 
 
