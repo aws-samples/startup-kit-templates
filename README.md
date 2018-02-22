@@ -72,7 +72,7 @@ If you do need to connect directly to instances, it's best (and for instances in
 
 EC2 key pairs are required to ssh into any EC2 instance, including bastion hosts. If an attacker gains access to your key pair, they can use it to get into your bastion host, and thus your other resources. In order to prevent this kind of breach the bastion host template supports enabling [Multi-Factor Authentication (MFA)](http://searchsecurity.techtarget.com/definition/multifactor-authentication-MFA), which is highly recommended
 
-With MFA enabled you use an app like Google Authenticator or Authy to obtain a one-time password, and use this when logging in, in addition to your key pair.
+With MFA enabled you use an app like Google Authenticator or Authy to obtain a one-time password, and use this when logging in, in addition to your username and key pair.
 
 The **_bastion.cfn.yml_** template creates:
 
