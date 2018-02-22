@@ -11,6 +11,7 @@ This repo contains a collection of AWS [CloudFormation](https://docs.aws.amazon.
 
 The VPC template is a requirement for the others. You can either run the templates/vpc.cfn.yml template by itself prior to using the others, or run any one of the vpc-*.cfn.yml wrapper templates at the top level of this repo to create sets of resources. For example, vpc-bastion-fargate-rds.cfn.yml will create a single stack containing a vpc, bastion host, fargate cluster, and database.
 
+
 ## Prerequisites
 
 If you haven't already done so you first need to:
@@ -19,10 +20,12 @@ If you haven't already done so you first need to:
 - [Create an EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#having-ec2-create-your-key-pair). This is necessary to use the bastion host.
 - [Clone this repo](https://help.github.com/articles/cloning-a-repository/) so that you have a local copy of the templates.
 
+
 ## Creating stacks
 Use the AWS [CloudFormation Console](https://console.aws.amazon.com/cloudformation/home) to run the templates. Click the "Create Stack" button in the upper left corner of the console, then under "Choose a template", select "Upload a template to Amazon S3" and click "Browse" to find your local fork of this repository and choose the template you want to run.
 
 To launch stacks directly directly from this README see the [table below](#launch-table).
+
 
 ## The templates
 
@@ -34,6 +37,7 @@ Each section contains details about template parameters and the resources create
 - [fargate.cfn.yml](#fargate)
 - [db.cfn.yml](#db)
 - [aurora.cfn.yml](#aurora)
+
 
 <a name="vpc"></a>
 ### VPC
@@ -58,12 +62,17 @@ Each subnet has to be associated with a route table, or set of network rules, th
 
 Security groups act as firewalls at the instance level, to control inbound and outbound traffic. The template creates security groups for an application, load balancer, database, and bastion host. Depending on what other templates you run, not all of them may be used.
 
+
 <a name="bastion"></a>
 ### Bastion host
 
-It's preferable not to ssh into instances at all, instead monintoring instances by configuring them to send logs to [CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html) or other services, and managing instantiation, configuration, and termination of instances using devops tools.
+It's preferable not to ssh into EC2 instances at all, instead monitoring instances by configuring them to send logs to [CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html) or other services, and managing instantiation, configuration, and termination of instances using devops tools.
 
-If you do need to connect directly to EC2 instances, it's best practice (and for instances in a private subnets, a requirement) to use a bastion host, otherwise known as a jump box. A bastion host is an EC2 instance that is publicly accessible, and also has access resources in private subnets, allowing it to function as a secure go-between. You can ssh into the bastion host, and from there connect to your private resources.
+If you do need to connect directly to instances, it's best (and for instances in a private subnets, a requirement) to use a bastion host, otherwise known as a jump box. A bastion host is an EC2 instance that is publicly accessible, and also has access to private resources, allowing it to function as a secure go-between. You configure your EC2 instances to only accept ssh traffic from the bastion host, then you can ssh into the bastion host, and from there connect to your private resources.
+
+EC2 key pairs are required to ssh into any EC2 instance, including bastion hosts. If an attacker gains access to your key pair, they can use it to get into your bastion host, and thus your other resources. In order to prevent this kind of breach the bastion host template supports enabling [Multi-Factor Authentication (MFA)](http://searchsecurity.techtarget.com/definition/multifactor-authentication-MFA), which is highly recommended
+
+With MFA enabled you use an app like Google Authenticator or Authy to obtain a one-time password, and use this when logging in, in addition to your key pair.
 
 The **_bastion.cfn.yml_** template creates:
 
@@ -80,6 +89,7 @@ You can also set how long CloudWatch logs are retained, and optionally enable [M
 The bastion template is dependent on having previously run the VPC template--when you run the bastion template you're required to enter the name of the VPC created by the VPC template. Once the bastion stack has been created, you can log into the [EC2 section of the console](https://console.aws.amazon.com/ec2), find the EC2 instance containing the stack name, copy its public DNS address, and [ssh into it](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html). One on the bastion host you should be able to reach all AWS resources running in the same VPC.
 
 For security and cost optimization it's best practice to stop (not terminate!) the bastion host when not in use.
+
 
 <a name="eb"></a>
 ### Elastic Beanstalk
@@ -141,6 +151,7 @@ The **_aurora.cfn.yml_** template creates:
 - An [Aurora DB Cluster](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Aurora.CreateInstance.html)
 - An [Aurora DB instance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Aurora.html)
 - A DB subnet group
+
 
 <a name="launch-table"></a>
 ### Launch stack
