@@ -8,6 +8,7 @@ This repo contains a collection of AWS [CloudFormation](https://docs.aws.amazon.
 - A container-based environment using [Amazon Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_GetStarted.html)
 - A relational database using [Amazon RDS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html)
 - An [Amazon Aurora](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Aurora.html) DB cluster
+- [Billing alerts](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html) for your account
 
 The VPC template is a requirement for the others. You can either run the templates/vpc.cfn.yml template by itself prior to using the others, or run any one of the vpc-*.cfn.yml wrapper templates at the top level of this repo to create sets of resources. For example, vpc-bastion-fargate-rds.cfn.yml will create a single stack containing a vpc, bastion host, fargate cluster, and database.
 
@@ -37,6 +38,7 @@ Each section contains details about template parameters and the resources create
 - [fargate.cfn.yml](#fargate)
 - [db.cfn.yml](#db)
 - [aurora.cfn.yml](#aurora)
+- [billing.cfn.yml](#billing)
 
 
 <a name="vpc"></a>
@@ -151,6 +153,23 @@ The **_aurora.cfn.yml_** template creates:
 - An [Aurora DB Cluster](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Aurora.CreateInstance.html)
 - An [Aurora DB instance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Aurora.html)
 - A DB subnet group
+
+
+<a href="billing"></a>
+### Billing Alerts
+
+If you leave AWS resources running longer than intended, have unexpected traffic levels, or misconfigure or over provision resources, your bill can climb higher or faster than expected. To avoid surprises we recommend turning on billing alerts, so that you're notified when charges go above preconfigured thresholds. The billing_alert template makes this easier.
+
+Before running you need to use the AWS console to enable billing alerts:
+
+- Log into the [billing section of the console](https://console.aws.amazon.com/console/home). Click your username on the top right and select 'My Billing Dashboard.'
+- Select 'Preferences' from the list of options on the left.
+- Check 'Receive Billing Alerts.' Once saved this cannot be disabled.
+
+Now you can run the billing_alert.cfn.yml template, which will create a [CloudWatch alarm](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-cw-alarm.html) and an [SNS topic](https://docs.aws.amazon.com/sns/latest/dg/CreateTopic.html). You'll be asked for the threshold (in US dollars) for receiving an alert and the email address the alert should be sent to. If you want to get alerts at more than one threshold, you can run the template multiple times.
+
+You can read about more [ways to avoid unexpected charges](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/checklistforunwantedcharges.html).
+
 
 
 <a name="launch-table"></a>
