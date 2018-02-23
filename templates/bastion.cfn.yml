@@ -265,7 +265,7 @@ Resources:
       LogGroupName: !Ref BastionSecureLogGroup
       LogStreamName: log
 
-  # When a user tries to SSH with invalid username the next line is logged in the SSH log file
+  # When a user tries to SSH with invalid username the activity is logged in the SSH log file
   SshInvalidUserMetricFilter:
       Type: AWS::Logs::MetricFilter
       Properties:
@@ -287,6 +287,7 @@ Resources:
         EvaluationPeriods: 1
         Threshold: 3
         ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
 
   # When a user uses a bad private key pair or username
   SshClosedConnectionMetricFilter:
@@ -302,14 +303,15 @@ Resources:
   SshClosedConnectionAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmDescription: SSH conneections closed due to invalid SSH key or username is greater than 10 in 5 minutes
+        AlarmDescription: SSH connections closed due to invalid SSH key or username is greater than 5 in 5 minutes
         MetricName: sshClosedConnection
         Namespace: SSH
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1
-        Threshold: 15
+        Threshold: 5
         ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
 
 Outputs:
 
