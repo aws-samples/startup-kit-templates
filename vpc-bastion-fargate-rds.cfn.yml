@@ -2,14 +2,14 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 
-Description: VPC + Bastion + Fargaate + Database
+Description: VPC + Bastion + Fargate + Database
 
 
 Parameters:
 
   TemplateBucket:
     Type: String
-    Default: awslabs-startup-kit-templates-deploy-v1
+    Default: awslabs-startup-kit-templates-deploy-v2
     Description: The template bucket for the CloudFormation templates
 
   # vpc.cfn.yml parameters
@@ -290,6 +290,77 @@ Parameters:
       - db.r4.8xlarge
       - db.r4.16xlarge
 
+  DatabaseEnableAlarms:
+    Default: false
+    Type: String
+    Description: Set to true to enable (additional charges - https://aws.amazon.com/cloudwatch/pricing/ - aurora, postgres, mariadb, mysql)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
+  DatabaseEnhancedMonitoring:
+    Default: false
+    Type: String
+    Description: The optional flag for enhanced monitoring (additional charges apply - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Monitoring.OS.htm - aurora, postgres, mariadb, mysql)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
+  DatabaseAlarmMaxCpuPercent:
+    Description: Database CPU % max for alarm (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 80
+    MinValue: 1
+    MaxValue: 99
+    ConstraintDescription: Must be a percentage between 1-99%
+
+  DatabaseAlarmReadLatencyMaxSeconds:
+    Description: Read latency max in seconds for alarm (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Must at least one
+
+  DatabaseAlarmWriteLatencyMaxSeconds:
+    Description: Write latency max in seconds for alarm (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Must at least one
+
+  DatabaseAlarmEvaluationPeriods:
+    Description: The number of periods over which data is compared to the specified threshold (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 2
+    MinValue: 2
+    ConstraintDescription: Must be at least one
+
+  DatabaseAlarmEvaluationPeriodSeconds:
+    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60. Enhanced monitoring must be enabled if less than 500 second (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 300
+    MinValue: 60
+    ConstraintDescription: Must be at least 60 seconds
+
+  # Default is 500 MB
+  DatabaseAlarmMinFreeSpaceInBytes:
+    Default: 524288000
+    Type: Number
+    Description: Number of min free space bytes for alarm (postgres, mariadb, mysql)
+    MinValue: 1
+    ConstraintDescription: A value of one byte or more
+
+  # Default is 200 MB
+  DatabaseAlarmSwapUsageInBytes:
+    Default: 209715200
+    Type: Number
+    Description: Number of swap usage bytes for alarm (postgres, mariadb, mysql)
+    MinValue: 1
+    ConstraintDescription: A value of one byte or more
+
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -319,6 +390,15 @@ Metadata:
           - DatabaseName
           - DatabaseSize
           - EncryptionAtRest
+          - DatabaseEnableAlarms
+          - DatabaseEnhancedMonitoring
+          - DatabaseAlarmMaxCpuPercent
+          - DatabaseAlarmReadLatencyMaxSeconds
+          - DatabaseAlarmWriteLatencyMaxSeconds
+          - DatabaseAlarmEvaluationPeriods
+          - DatabaseAlarmEvaluationPeriodSeconds
+          - DatabaseAlarmMinFreeSpaceInBytes
+          - DatabaseAlarmSwapUsageInBytes
       - Label:
           default: Application Global
         Parameters:
@@ -431,6 +511,25 @@ Metadata:
         default: Encryption at Rest
       DatabaseInstanceClass:
         default: Instance Type
+      DatabaseAlarmMaxCpuPercent:
+        default: Alarm Max CPU%
+      DatabaseAlarmReadLatencyMaxSeconds:
+        default: Alarm Max Read Latency
+      DatabaseAlarmWriteLatencyMaxSeconds:
+        default: Alarm Max Write Latency
+      DatabaseAlarmEvaluationPeriods:
+        default: Alarm Period(s)
+      DatabaseAlarmEvaluationPeriodSeconds:
+        default: Alarm Period Seconds
+      DatabaseEnhancedMonitoring:
+        default: Enhanced Monitoring
+      DatabaseAlarmMinFreeSpaceInBytes:
+        default: Min Free Space
+      DatabaseAlarmSwapUsageInBytes:
+        default: Max Swap Use
+      DatabaseEnableAlarms:
+        default: Enable Alarms
+
 
 Conditions:
 
@@ -479,6 +578,13 @@ Resources:
         DatabasePassword: !Ref DatabasePassword
         DatabaseName: !Ref DatabaseName
         EncryptionAtRest: !Ref EncryptionAtRest
+        EnableAlarms: !Ref DatabaseEnableAlarms
+        EnhancedMonitoring: !Ref DatabaseEnhancedMonitoring
+        DatabaseAlarmMaxCpuPercent: !Ref DatabaseAlarmMaxCpuPercent
+        DatabaseAlarmReadLatencyMaxSeconds: !Ref DatabaseAlarmReadLatencyMaxSeconds
+        DatabaseAlarmWriteLatencyMaxSeconds: !Ref DatabaseAlarmWriteLatencyMaxSeconds
+        DatabaseAlarmEvaluationPeriods: !Ref DatabaseAlarmEvaluationPeriods
+        DatabaseAlarmEvaluationPeriodSeconds: !Ref DatabaseAlarmEvaluationPeriodSeconds
     DependsOn: VpcStack
 
   RdsStack:
@@ -496,6 +602,15 @@ Resources:
         DatabaseName: !Ref DatabaseName
         EncryptionAtRest: !Ref EncryptionAtRest
         DatabaseSize: !Ref DatabaseSize
+        EnableAlarms: !Ref DatabaseEnableAlarms
+        EnhancedMonitoring: !Ref DatabaseEnhancedMonitoring
+        DatabaseAlarmMaxCpuPercent: !Ref DatabaseAlarmMaxCpuPercent
+        DatabaseAlarmReadLatencyMaxSeconds: !Ref DatabaseAlarmReadLatencyMaxSeconds
+        DatabaseAlarmWriteLatencyMaxSeconds: !Ref DatabaseAlarmWriteLatencyMaxSeconds
+        DatabaseAlarmEvaluationPeriods: !Ref DatabaseAlarmEvaluationPeriods
+        DatabaseAlarmEvaluationPeriodSeconds: !Ref DatabaseAlarmEvaluationPeriodSeconds
+        DatabaseAlarmMinFreeSpaceInBytes: !Ref DatabaseAlarmMinFreeSpaceInBytes
+        DatabaseAlarmSwapUsageInBytes: !Ref DatabaseAlarmSwapUsageInBytes
     DependsOn: VpcStack
 
   FargateStack:
