@@ -4,6 +4,9 @@
 .project
 .settings/
 
+# Python
+*.pyc
+
 # Intellij
 .idea/
 *.iml

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Usage: ./bin/deploy.sh awslabs-startup-kit-templates-deploy-v1 startup
+# Usage: ./bin/deploy.sh awslabs-startup-kit-templates-deploy-v2 startup
 #
 # The first argument is the bucket and the second is the aws cli profile
 #

@@ -1,0 +1,55 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+
+  AlarmThreshold:
+    Description: Set a threshold for the alarm to go off if the estimated charge is exceeded. 
+    Type: Number
+    MinValue: 1
+    MaxValue: 10000000
+
+  Email:
+    Description: Email address to notify if the threshold is breached. You should get a confirmation email from SNS once the resources are created.
+    Type: String
+    AllowedPattern: ^[_A-Za-z0-9-\+]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9]+)*(\.[A-Za-z]{2,})$
+
+Resources:
+
+  BillingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub Alarm if AWS spending is over $${AlarmThreshold}
+      Namespace: AWS/Billing
+      MetricName: EstimatedCharges
+      Dimensions:
+      - Name: Currency
+        Value: USD
+      Statistic: Maximum
+      Period: 21600
+      EvaluationPeriods: 1
+      Threshold: !Ref AlarmThreshold
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+      - !Ref BillingAlarmTopic
+
+  BillingAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint: !Ref Email
+        Protocol: email
+
+Outputs:
+
+  BillingAlarmTopicArn:
+    Description: Billing Alarm Topic ARN
+    Value: !Ref BillingAlarmTopic
+    Export:
+      Name: !Sub ${AWS::StackName}-BillingAlarmTopicArn
+
+  BillingAlarmTopicName:
+    Description: Billing Alarm Topic Name
+    Value: !GetAtt BillingAlarmTopic.TopicName
+    Export:
+        Name: !Sub ${AWS::StackName}-BillingAlarmTopicName
