@@ -39,6 +39,7 @@ Each section contains details about template parameters and the resources create
 - [fargate.cfn.yml](#fargate)
 - [db.cfn.yml](#db)
 - [aurora.cfn.yml](#aurora)
+- [elasticache.cfn.yml](#elasticache)
 - [billing.cfn.yml](#billing)
 
 
@@ -103,6 +104,7 @@ The **_elastic-beanstalk.cfn.yml_** template asks for a series of inputs definin
 
 - A stack type, with allowed values of node, rails, python, python3 or spring.
 - An environment name with allowed values  of dev or prod.
+- The name of the stack you previously created to define your VPC, as the NetworkStackName parameter.
 
 It creates:
 
@@ -132,11 +134,15 @@ The **_fargate.cfn.yml_** template creates:
 - A [Fargate task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/create-task-definition.html)
 - A Fargate service with associated scaling resources
 
+Creating a Fargate stack requires you to have first created a [VPC](#vpc) stack, and to enter the name of the VPC stack as the NetworkStackName parameter.
+
 
 <a name="db"></a>
 ### RDS
 
 [Amazon Relational Database Service (RDS)](https://aws.amazon.com/rds/) is a service for running relational databases without having to manage the server software, backups, or other maintenance tasks. The RDS service as a whole supports Amazon Aurora, PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server; this template currently works with PostgreSQL, MySQL, and MariaDB, and supports t2, m4, and r4 [instance types](https://aws.amazon.com/rds/instance-types/).
+
+Creating an RDS stack requires you to have first created a [VPC](#vpc) stack, and to enter the name of the VPC stack as the NetworkStackName parameter.
 
 The **_db.cfn.yml_** template creates:
 
@@ -148,6 +154,8 @@ The **_db.cfn.yml_** template creates:
 ### Aurora
 
 Amazon Aurora is a high-performance cloud-optimized relational database, which is compatible with MySQL and PostgreSQL. It’s treated separately than RDS because Aurora has a few unique characteristics.
+
+Creating an Aurora stack requires you to have first created a [VPC](#vpc) stack, and to enter the name of the VPC stack as the NetworkStackName parameter.
 
 The **_aurora.cfn.yml_** template creates:
 
