@@ -208,6 +208,35 @@ Parameters:
       - prod
     ConstraintDescription: Specify either dev or prod
 
+  LoadBalancerAlarmEvaluationPeriods:
+    Description: The number of periods over which data is compared to the threshold
+    Type: Number
+    Default: 2
+    MinValue: 2
+    ConstraintDescription: Must be at least one
+
+  LoadBalancerAlarmEvaluationPeriodSeconds:
+    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60
+    Type: Number
+    Default: 300
+    MinValue: 60
+    ConstraintDescription: Must be at least 60 seconds
+
+  LoadBalancerLatencySeconds:
+    Description: LoadBalancer latency threshold, in seconds
+    Type: Number
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Must be at least one
+
+  EnableLBAlarm:
+    Description: Set to true to enable load balancer latency alarm
+    Type: String
+    ConstraintDescription: Value must be true or false
+    Default: false
+    AllowedValues:
+      - true
+      - false
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -251,6 +280,10 @@ Metadata:
           - HostedZoneName
           - LoadBalancerDomainName
           - SSLCertificateArn
+          - EnableLBAlarm
+          - LoadBalancerLatencySeconds
+          - LoadBalancerAlarmEvaluationPeriodSeconds
+          - LoadBalancerAlarmEvaluationPeriods
       - Label:
           default: Initial Service CI/CD
         Parameters:
@@ -326,6 +359,15 @@ Metadata:
         default: Initial Image
       CodeBuildDockerImage:
         default: CodeBuild Image
+      EnableLBAlarm:
+        default: Enable LB Alarm
+      LoadBalancerAlarmEvaluationPeriods:
+        default: LB Alarm Periods
+      LoadBalancerAlarmEvaluationPeriodSeconds:
+        default: LB Alarm Seconds
+      LoadBalancerLatencySeconds:
+        default: LB Latency Threshold
+
 
 
 Conditions:
@@ -385,6 +427,10 @@ Resources:
         MaxTaggedContainerImagesToRetain: !Ref MaxTaggedContainerImagesToRetain
         DaysToRetainUntaggedContainerImages: !Ref DaysToRetainUntaggedContainerImages
         EnvironmentName: !Ref EnvironmentName
+        EnableLBAlarm: !Ref EnableLBAlarm
+        LoadBalancerLatencySeconds: !Ref LoadBalancerLatencySeconds
+        LoadBalancerAlarmEvaluationPeriodSeconds: !Ref LoadBalancerAlarmEvaluationPeriodSeconds
+        LoadBalancerAlarmEvaluationPeriods: !Ref LoadBalancerAlarmEvaluationPeriods
     DependsOn: VpcStack
 
 

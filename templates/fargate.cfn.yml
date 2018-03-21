@@ -177,6 +177,36 @@ Parameters:
       - prod
     ConstraintDescription: Specify either dev or prod
 
+  LoadBalancerAlarmEvaluationPeriods:
+    Description: The number of periods over which data is compared to the specified threshold 
+    Type: Number
+    Default: 2
+    MinValue: 2
+    ConstraintDescription: Must be at least two
+
+  LoadBalancerAlarmEvaluationPeriodSeconds:
+    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60. 
+    Type: Number
+    Default: 300
+    MinValue: 60
+    ConstraintDescription: Must be at least 60 seconds
+
+  LoadBalancerLatencySeconds:
+    Description: LoadBalancer latency threshold, in seconds
+    Type: Number
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Must be atleast one
+
+  EnableLBAlarm:
+    Description: Set to true to enable load balancer latency alarm
+    Type: String
+    ConstraintDescription: Value must be true or false
+    Default: false
+    AllowedValues:
+      - true
+      - false    
+  
 Conditions:
 
    IsTlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
@@ -186,6 +216,8 @@ Conditions:
    CreateRoute53Record: !And
      - !Not [ !Equals [ !Ref LoadBalancerDomainName, "" ] ]
      - !Not [ !Equals [ !Ref HostedZoneName, "" ] ]
+
+   IsLBAlarmEnabled: !Equals [ !Ref EnableLBAlarm, true ]  
 
 Resources:
 
@@ -715,6 +747,33 @@ Resources:
     - DefaultTargetGroup
     - ApplicationLoadBalancer
 
+  LBLatency:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsLBAlarmEnabled
+    Properties: 
+      AlarmName: LoadBalancer Latency Alarm
+      AlarmDescription: !Sub LB latency is over ${LoadBalancerLatencySeconds} for ${LoadBalancerAlarmEvaluationPeriods} period(s) of ${LoadBalancerAlarmEvaluationPeriodSeconds} seconds
+      TreatMissingData: notBreaching
+      AlarmActions:
+      - !Ref LoadBalancerAlarmTopic
+      Namespace: AWS/ApplicationELB
+      MetricName: TargetResponseTime
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Unit: Seconds
+      Statistic: Average
+      EvaluationPeriods: !Ref LoadBalancerAlarmEvaluationPeriods
+      Period: !Ref LoadBalancerAlarmEvaluationPeriodSeconds
+      Threshold: !Ref LoadBalancerLatencySeconds
+      Dimensions:
+      - Name: LoadBalancer
+        Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+    DependsOn: ApplicationLoadBalancer
+    
+  LoadBalancerAlarmTopic:
+    Type: AWS::SNS::Topic
+    Condition: IsLBAlarmEnabled
+    Properties:
+      DisplayName: LoadBalancer Alarm Topic           
 
 Outputs:
 
@@ -773,4 +832,16 @@ Outputs:
     Value: !GetAtt ApplicationLoadBalancer.LoadBalancerName
     Export:
       Name: !Sub ${AWS::StackName}-ApplicationLoadBalancerName
+
+  LoadBalancerAlarmTopicArn:
+    Description: LoadBalancer Alarm Topic ARN
+    Value: !Ref LoadBalancerAlarmTopic
+    Export:
+      Name: !Sub ${AWS::StackName}-LoadBalancerAlarmTopicArn
+
+  LoadBalancerAlarmTopicName:
+    Description: LoadBalancer Alarm Topic Name
+    Value: !GetAtt LoadBalancerAlarmTopic.TopicName
+    Export:
+      Name: !Sub ${AWS::StackName}-LoadBalancerAlarmTopicName    
 
