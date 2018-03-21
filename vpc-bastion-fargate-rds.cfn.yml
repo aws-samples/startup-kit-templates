@@ -81,6 +81,36 @@ Parameters:
     AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
     ConstraintDescription: Please enter a valid domain name
 
+  LoadBalancerAlarmEvaluationPeriods:
+    Description: The number of periods over which data is compared to the threshold
+    Type: Number
+    Default: 2
+    MinValue: 2
+    ConstraintDescription: Must be at least one
+
+  LoadBalancerAlarmEvaluationPeriodSeconds:
+    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60
+    Type: Number
+    Default: 300
+    MinValue: 60
+    ConstraintDescription: Must be at least 60 seconds
+
+  LoadBalancerLatencySeconds:
+    Description: LoadBalancer latency threshold, in seconds
+    Type: Number
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Must be atleast one
+
+  EnableLBAlarm:
+    Description: Set to true to enable load balancer latency alarm
+    Type: String
+    ConstraintDescription: Value must be true or false
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
   AppProtocol:
     Type: String
     Description: The application server protocol
@@ -422,6 +452,10 @@ Metadata:
           - HostedZoneName
           - LoadBalancerDomainName
           - SSLCertificateArn
+          - EnableLBAlarm
+          - LoadBalancerLatencySeconds
+          - LoadBalancerAlarmEvaluationPeriodSeconds
+          - LoadBalancerAlarmEvaluationPeriods
       - Label:
           default: Initial Service CI/CD
         Parameters:
@@ -529,7 +563,14 @@ Metadata:
         default: Max Swap Use
       DatabaseEnableAlarms:
         default: Enable Alarms
-
+      EnableLBAlarm:
+        default: Enable LB Alarm
+      LoadBalancerAlarmEvaluationPeriods:
+        default: LB Alarm Periods
+      LoadBalancerAlarmEvaluationPeriodSeconds:
+        default: LB Alarm Seconds
+      LoadBalancerLatencySeconds:
+        default: LB Latency Threshold
 
 Conditions:
 
@@ -641,6 +682,10 @@ Resources:
         MaxTaggedContainerImagesToRetain: !Ref MaxTaggedContainerImagesToRetain
         DaysToRetainUntaggedContainerImages: !Ref DaysToRetainUntaggedContainerImages
         EnvironmentName: !Ref EnvironmentName
+        EnableLBAlarm: !Ref EnableLBAlarm
+        LoadBalancerLatencySeconds: !Ref LoadBalancerLatencySeconds
+        LoadBalancerAlarmEvaluationPeriodSeconds: !Ref LoadBalancerAlarmEvaluationPeriodSeconds
+        LoadBalancerAlarmEvaluationPeriods: !Ref LoadBalancerAlarmEvaluationPeriods
 
 Outputs:
 

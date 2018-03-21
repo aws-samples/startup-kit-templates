@@ -129,6 +129,7 @@ The **_fargate.cfn.yml_** template creates:
 - A CodeBuild service role
 - An [Elastic Container Registry (ECR)](https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html) repository
 - An [Application Load Balancer (ALB)](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
+- A CloudWatch Alarm for ALB latency
 - An [ALB Route 53 record](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-to-elb-load-balancer.html)
 - ELB target groups stuff
 - A [Fargate task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/create-task-definition.html)
