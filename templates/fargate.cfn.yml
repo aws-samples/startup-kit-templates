@@ -178,14 +178,14 @@ Parameters:
     ConstraintDescription: Specify either dev or prod
 
   LoadBalancerAlarmEvaluationPeriods:
-    Description: The number of periods over which data is compared to the specified threshold 
+    Description: The number of periods over which data is compared to the specified threshold
     Type: Number
     Default: 2
     MinValue: 2
     ConstraintDescription: Must be at least two
 
   LoadBalancerAlarmEvaluationPeriodSeconds:
-    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60. 
+    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60.
     Type: Number
     Default: 300
     MinValue: 60
@@ -205,8 +205,8 @@ Parameters:
     Default: false
     AllowedValues:
       - true
-      - false    
-  
+      - false
+
 Conditions:
 
    IsTlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
@@ -217,7 +217,7 @@ Conditions:
      - !Not [ !Equals [ !Ref LoadBalancerDomainName, "" ] ]
      - !Not [ !Equals [ !Ref HostedZoneName, "" ] ]
 
-   IsLBAlarmEnabled: !Equals [ !Ref EnableLBAlarm, true ]  
+   IsLBAlarmEnabled: !Equals [ !Ref EnableLBAlarm, true ]
 
 Resources:
 
@@ -750,7 +750,7 @@ Resources:
   LBLatency:
     Type: AWS::CloudWatch::Alarm
     Condition: IsLBAlarmEnabled
-    Properties: 
+    Properties:
       AlarmName: LoadBalancer Latency Alarm
       AlarmDescription: !Sub LB latency is over ${LoadBalancerLatencySeconds} for ${LoadBalancerAlarmEvaluationPeriods} period(s) of ${LoadBalancerAlarmEvaluationPeriodSeconds} seconds
       TreatMissingData: notBreaching
@@ -768,12 +768,12 @@ Resources:
       - Name: LoadBalancer
         Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
     DependsOn: ApplicationLoadBalancer
-    
+
   LoadBalancerAlarmTopic:
     Type: AWS::SNS::Topic
     Condition: IsLBAlarmEnabled
     Properties:
-      DisplayName: LoadBalancer Alarm Topic           
+      DisplayName: LoadBalancer Alarm Topic
 
 Outputs:
 
@@ -836,12 +836,14 @@ Outputs:
   LoadBalancerAlarmTopicArn:
     Description: LoadBalancer Alarm Topic ARN
     Value: !Ref LoadBalancerAlarmTopic
+    Condition: IsLBAlarmEnabled
     Export:
       Name: !Sub ${AWS::StackName}-LoadBalancerAlarmTopicArn
 
   LoadBalancerAlarmTopicName:
     Description: LoadBalancer Alarm Topic Name
     Value: !GetAtt LoadBalancerAlarmTopic.TopicName
+    Condition: IsLBAlarmEnabled
     Export:
-      Name: !Sub ${AWS::StackName}-LoadBalancerAlarmTopicName    
+      Name: !Sub ${AWS::StackName}-LoadBalancerAlarmTopicName
 
