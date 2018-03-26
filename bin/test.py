@@ -209,7 +209,7 @@ def ensure_foundation(session, config):
         print 'Ensure key pair in region: {}'.format(region)
 
         ec2_client = session.client('ec2', region_name=region, config=config)
-        key_name = '{}{}{}{}'.format(KEY_PAIR_PREFIX, time.time(), '-', region)
+        key_name = '{}{}'.format(KEY_PAIR_PREFIX, region)
         if not has_key_pair(ec2_client, key_name):
             key_material = create_key_pair(ec2_client, key_name)
             key_pairs.append({"Region":region,"KeyName":key_name, "KeyMaterial": key_material})
