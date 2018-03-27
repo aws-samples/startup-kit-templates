@@ -9,6 +9,7 @@ TEST_APP_SOURCE_BUCKET='awslabs-startup-kit-templates-test-eb-v1'
 
 TEST_PYTHON_APP_KEY='eb-python-flask.zip'
 
+TEMPLATE_BUCKET='awslabs-startup-kit-templates-deploy-v2'
 TEMPLATE_URL_PREFX='https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v2/'
 EB_TEMPLATE_URL='{}vpc-bastion-eb-rds.cfn.yml'.format(TEMPLATE_URL_PREFX)
 VPC_TEMPLATE_URL='{}vpc.cfn.yml'.format(TEMPLATE_URL_PREFX)
@@ -42,15 +43,10 @@ def create_key_pair(client, name):
     response = client.create_key_pair(KeyName=name)
     return response['KeyMaterial']
 
-def store_key_locally(name, private_key):
-    """ Store the key in your ~/.ssh directory
+def delete_key_pair(client, name):
+    """ Create a new key pair and return the private key
     """
-    file_name = '{}/.ssh/{}'.format(expanduser("~"), name)
-
-    file = open(file_name, 'w')
-    file.write(private_key)
-    file.close()
-    os.chmod(file_name, 0400)
+    response = client.delete_key_pair(KeyName=name)
 
 def has_key_pair(client, name):
     """ If the EC2 key pair exists, then true is returned
@@ -144,6 +140,7 @@ def create_eb_stack(client, stack_name, azs, environment, ssh_key, app_bucket, a
         { 'ParameterKey': 'EbInstanceType', 'ParameterValue': 't2.small' },
         { 'ParameterKey': 'DatabasePassword', 'ParameterValue': 'startupadmin6' },
         { 'ParameterKey': 'DatabaseEngine', 'ParameterValue': db_engine },
+        { 'ParameterKey': 'TemplateBucket', 'ParameterValue': TEMPLATE_BUCKET},
     ]
 
     if alarms:
@@ -161,6 +158,7 @@ def create_vpc_stack(client, stack_name, azs, environment):
         { 'ParameterKey': 'EnvironmentName', 'ParameterValue': environment },
         { 'ParameterKey': 'AvailabilityZone1', 'ParameterValue': azs[0] },
         { 'ParameterKey': 'AvailabilityZone2', 'ParameterValue': azs[1] },
+        { 'ParameterKey': 'TemplateBucket', 'ParameterValue': TEMPLATE_BUCKET},
     ]
     return create_stack(client, stack_name, VPC_TEMPLATE_URL, parameters)
 
@@ -172,6 +170,7 @@ def create_vpc_bastion_stack(client, stack_name, azs, environment, ssh_key):
         { 'ParameterKey': 'AvailabilityZone1', 'ParameterValue': azs[0] },
         { 'ParameterKey': 'AvailabilityZone2', 'ParameterValue': azs[1] },
         { 'ParameterKey': 'KeyName', 'ParameterValue': ssh_key },
+        { 'ParameterKey': 'TemplateBucket', 'ParameterValue': TEMPLATE_BUCKET},
     ]
     return create_stack(client, stack_name, VPC_BASTION_TEMPLATE_URL, parameters)
 
@@ -204,6 +203,7 @@ def wait_for_stacks(stacks, create):
 def ensure_foundation(session, config):
     """ Make sure we have everything we need in place to run the stacks
     """
+    key_pairs=[]
     for region in get_regions(session.client('ec2', region_name='us-east-1', config=config)):
 
         print 'Ensure key pair in region: {}'.format(region)
@@ -211,7 +211,8 @@ def ensure_foundation(session, config):
         ec2_client = session.client('ec2', region_name=region, config=config)
         key_name = '{}{}'.format(KEY_PAIR_PREFIX, region)
         if not has_key_pair(ec2_client, key_name):
-            store_key_locally(key_name, create_key_pair(ec2_client, key_name))
+            key_material = create_key_pair(ec2_client, key_name)
+            key_pairs.append({"Region":region,"KeyName":key_name, "KeyMaterial": key_material})
 
         s3_client = session.client('s3', region_name=region, config=config)
 
@@ -223,6 +224,18 @@ def ensure_foundation(session, config):
 
         # Copy the latest version of the file to the bucket
         update_sample_app(s3_client, app_bucket_name, TEST_APP_SOURCE_BUCKET, TEST_PYTHON_APP_KEY)
+
+    return key_pairs    
+
+def remove_keypairs(session, config, key_pairs):
+    """ Remove key-pairs created as part of test harness
+    """
+
+    for key_pair in key_pairs:
+
+        ec2_client = session.client('ec2', region_name=key_pair['Region'], config=config)
+        delete_key_pair(ec2_client, key_pair['KeyName'])
+        print 'Deleted keypair: {} in region: {}'.format(key_pair['KeyName'],key_pair['Region'])
 
 def test_stack(session, config, stack_type):
     """ Create a specific stack in supported regions, wait for it to create and then delete it
@@ -291,7 +304,7 @@ def main():
     session = boto3.Session(profile_name=None if len(sys.argv) < 2 else sys.argv[1])
     print 'AWS session created'
 
-    ensure_foundation(session, config)
+    key_pairs = ensure_foundation(session, config)
 
     tests = [
         'vpc',
@@ -303,6 +316,9 @@ def main():
 
     for test in tests:
         test_stack(session, config, test)
+
+    remove_keypairs(session, config, key_pairs)
+    #we also need to add code to remove buckets created as part of test harness
 
 if __name__ == '__main__':
     main()
