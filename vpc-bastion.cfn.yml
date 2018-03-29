@@ -9,7 +9,7 @@ Parameters:
 
   TemplateBucket:
     Type: String
-    Default: awslabs-startup-kit-templates-deploy-v2
+    Default: awslabs-startup-kit-templates-deploy-v3
     Description: The template bucket for the CloudFormation templates
 
   AvailabilityZone1:

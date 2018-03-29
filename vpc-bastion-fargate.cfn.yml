@@ -9,7 +9,7 @@ Parameters:
 
   TemplateBucket:
     Type: String
-    Default: awslabs-startup-kit-templates-deploy-v2
+    Default: awslabs-startup-kit-templates-deploy-v3
     Description: The template bucket for the CloudFormation templates
 
   # vpc.cfn.yml parameters
@@ -148,17 +148,24 @@ Parameters:
     MaxValue: 30720
     ConstraintDescription: "Value must be between 512 and 30720 - see: https://aws.amazon.com/fargate/pricing/"
 
-  DefaultServiceCpuScaleUpThreshold:
+  # Scaling params
+  DefaultServiceScaleEvaluationPeriods:
+    Description: The number of periods over which data is compared to the specified threshold
     Type: Number
-    Description: Average CPU % value to trigger auto scaling up
+    Default: 2
+    MinValue: 2
+
+  DefaultServiceCpuScaleOutThreshold:
+    Type: Number
+    Description: Average CPU % value to trigger auto scaling out
     Default: 50
     MinValue: 0
     MaxValue: 100
     ConstraintDescription: Value must be between 0 and 100
 
-  DefaultServiceCpuScaleDownThreshold:
+  DefaultServiceCpuScaleInThreshold:
     Type: Number
-    Description: Average CPU % value to trigger auto scaling down
+    Description: Average CPU % value to trigger auto scaling in
     Default: 25
     MinValue: 0
     MaxValue: 100
@@ -173,7 +180,7 @@ Parameters:
 
   DefaultTaskMaxContainerCount:
     Type: Number
-    Description: Maximum number of containers to run for the service when auto scaling up
+    Description: Maximum number of containers to run for the service when auto scaling out
     Default: 2
     MinValue: 1
     ConstraintDescription: Value must be at least one
@@ -225,7 +232,7 @@ Parameters:
   LoadBalancerLatencySeconds:
     Description: LoadBalancer latency threshold, in seconds
     Type: Number
-    Default: 1
+    Default: 2
     MinValue: 1
     ConstraintDescription: Must be at least one
 
@@ -268,8 +275,9 @@ Metadata:
           - HealthCheckPath
           - DefaultContainerCpu
           - DefaultContainerMemory
-          - DefaultServiceCpuScaleUpThreshold
-          - DefaultServiceCpuScaleDownThreshold
+          - DefaultServiceScaleEvaluationPeriods
+          - DefaultServiceCpuScaleOutThreshold
+          - DefaultServiceCpuScaleInThreshold
           - DefaultTaskMinContainerCount
           - DefaultTaskMaxContainerCount
           - ContainerLogRetentionInDays
@@ -339,9 +347,11 @@ Metadata:
         default: CPU
       DefaultContainerMemory:
         default: Memory
-      DefaultServiceCpuScaleUpThreshold:
+      DefaultServiceScaleEvaluationPeriods:
+        default: Scale Periods
+      DefaultServiceCpuScaleOutThreshold:
         default: Scale Up CPU
-      DefaultServiceCpuScaleDownThreshold:
+      DefaultServiceCpuScaleInThreshold:
         default: Scale Down CPU
       DefaultTaskMinContainerCount:
         default: Min Containers
@@ -419,8 +429,9 @@ Resources:
         SeedDockerImage: !Ref SeedDockerImage
         DefaultContainerCpu: !Ref DefaultContainerCpu
         DefaultContainerMemory: !Ref DefaultContainerMemory
-        DefaultServiceCpuScaleUpThreshold: !Ref DefaultServiceCpuScaleUpThreshold
-        DefaultServiceCpuScaleDownThreshold: !Ref DefaultServiceCpuScaleDownThreshold
+        DefaultServiceScaleEvaluationPeriods: !Ref DefaultServiceScaleEvaluationPeriods
+        DefaultServiceCpuScaleOutThreshold: !Ref DefaultServiceCpuScaleOutThreshold
+        DefaultServiceCpuScaleInThreshold: !Ref DefaultServiceCpuScaleInThreshold
         DefaultTaskMinContainerCount: !Ref DefaultTaskMinContainerCount
         DefaultTaskMaxContainerCount: !Ref DefaultTaskMaxContainerCount
         ContainerLogRetentionInDays: !Ref ContainerLogRetentionInDays
