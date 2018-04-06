@@ -409,7 +409,7 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub ${AWS::StackName}
+      Family: !Ref AWS::StackName
       RequiresCompatibilities:
         - FARGATE
       Cpu: !Ref ContainerCpu
