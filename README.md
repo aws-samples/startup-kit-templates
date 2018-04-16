@@ -1,6 +1,8 @@
 # Overview
 
-The StartupKit-templates repo contains a collection of AWS [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html) templates intended to help you set up common pieces of AWS infrastructure. Each template defines a [stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacks.html), which is a collection of related resources that can be created, updated, or deleted as a single unit. Templates are available for creating:
+The StartupKit-templates repo contains a collection of AWS [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html) templates intended to help you set up common pieces of AWS infrastructure. Each template defines a [stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacks.html), which is a collection of related resources that can be created, updated, or deleted as a single unit.
+
+Templates are available for creating:
 
 - A secure network inside a [VPC](https://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Introduction.html) ([jump](#vpc))
 - A [bastion host](https://en.wikipedia.org/wiki/Bastion_host) to securely access instances inside the VPC ([jump](#bastion-host))
@@ -11,8 +13,9 @@ The StartupKit-templates repo contains a collection of AWS [CloudFormation](http
 - An [ElastiCache Cluster](https://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/WhatIs.html) ([jump](#amazon-elasticache-cluster))
 - [Billing alerts](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html) for your account ([jump](#billing-alerts))
 
-The VPC template is a requirement for the others. You can either run the templates/vpc.cfn.yml template by itself prior to using the others, or run any one of the vpc-\*.cfn.yml wrapper templates at the top level of this repo to create sets of resources. For example, vpc-bastion-fargate-rds.cfn.yml will create a single stack containing a vpc, bastion host, fargate cluster, and database.
+StartupKit is design to be modular. Some stacks depend on others, some can be deployed individually or in combination with others. You can use the stacks for each module individually and combine them on your own, or use wrapper stacks we have created from the [tables below](#launch-stack) that provide one-click launch for common combinations. Finally, we've regionalized the wrapper stacks so you know which regions the stack will deploy in and which they won't.
 
+The VPC template is a requirement for the others. You can either run the templates/vpc.cfn.yml template by itself prior to using the others, or run any one of the vpc-\*.cfn.yml wrapper templates at the top level of this repo to create sets of resources. For example, vpc-bastion-fargate-rds.cfn.yml will create a single stack containing a vpc, bastion host, fargate cluster, and database.
 
 ## Prerequisites
 
@@ -26,8 +29,7 @@ If you haven't already done so you first need to:
 ## Creating stacks
 Use the AWS [CloudFormation Console](https://console.aws.amazon.com/cloudformation/home) to run the templates. Click the "Create Stack" button in the upper left corner of the console, then under "Choose a template", select "Upload a template to Amazon S3" and click "Browse" to find your local fork of this repository and choose the template you want to run.
 
-To launch stacks directly directly from this README see the [table below](#launch-stack).
-
+To launch wrapper stacks, which are a combination of modular stacks, see the [tables below](#launch-stack).
 
 ## The templates
 
