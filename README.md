@@ -13,6 +13,7 @@ The StartupKit-templates repo contains a collection of AWS [CloudFormation](http
 
 The VPC template is a requirement for the others. You can either run the templates/vpc.cfn.yml template by itself prior to using the others, or run any one of the vpc-\*.cfn.yml wrapper templates at the top level of this repo to create sets of resources. For example, vpc-bastion-fargate-rds.cfn.yml will create a single stack containing a vpc, bastion host, fargate cluster, and database.
 
+StartupKit is designed to be modular. Some stacks depend on others, some can be deployed individually or in combination with others. You can use the stacks for each module individually and combine them on your own, or use wrapper stacks we have created from the [tables below](#launch-stack) that provide one-click launch for common combinations. The wrapper stacks in the one-click launch table are broken down by regions in order to simplify deployments. See the [Region Table](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/) for more information on availability of services by region.
 
 ## Prerequisites
 
