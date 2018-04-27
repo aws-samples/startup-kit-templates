@@ -130,15 +130,15 @@ Mappings:
   # Maps stack type parameter to solution stack name string
   StackMap:
     node:
-      stackName: 64bit Amazon Linux 2017.09 v4.4.4 running Node.js
+      stackName: 64bit Amazon Linux 2017.09 v4.4.6 running Node.js
     rails:
-      stackName: 64bit Amazon Linux 2017.09 v2.6.5 running Ruby 2.4 (Puma)
+      stackName: 64bit Amazon Linux 2017.09 v2.7.2 running Ruby 2.4 (Puma)
     spring:
-      stackName: 64bit Amazon Linux 2017.09 v2.7.5 running Tomcat 8 Java 8
+      stackName: 64bit Amazon Linux 2017.09 v2.7.7 running Tomcat 8 Java 8
     python:
-      stackName: 64bit Amazon Linux 2017.09 v2.6.4 running Python 2.7
+      stackName: 64bit Amazon Linux 2017.09 v2.6.6 running Python 2.7
     python3:
-      stackName: 64bit Amazon Linux 2017.09 v2.6.4 running Python 3.6
+      stackName: 64bit Amazon Linux 2017.09 v2.6.6 running Python 3.6
 
 Resources:
 

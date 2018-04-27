@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+""" Run test script with command: python test.py profile_name github_username github_repository token
+"""
 import boto3, botocore, os, time, sys
 from os.path import expanduser
 from botocore.client import Config
@@ -9,9 +11,12 @@ TEST_APP_SOURCE_BUCKET='awslabs-startup-kit-templates-test-eb-v1'
 
 TEST_PYTHON_APP_KEY='eb-python-flask.zip'
 
-TEMPLATE_BUCKET='awslabs-startup-kit-templates-deploy-v2'
-TEMPLATE_URL_PREFX='https://s3.amazonaws.com/awslabs-startup-kit-templates-deploy-v2/'
+TEMPLATE_BUCKET='awslabs-startup-kit-templates-deploy-v3'
+
+TEMPLATE_URL_PREFX='https://s3.amazonaws.com/{}/'.format(TEMPLATE_BUCKET)
 EB_TEMPLATE_URL='{}vpc-bastion-eb-rds.cfn.yml'.format(TEMPLATE_URL_PREFX)
+FARGATE_TEMPLATE_URL='{}vpc-bastion-fargate.cfn.yml'.format(TEMPLATE_URL_PREFX)
+FARGATE_RDS_TEMPLATE_URL='{}vpc-bastion-fargate-rds.cfn.yml'.format(TEMPLATE_URL_PREFX)
 VPC_TEMPLATE_URL='{}vpc.cfn.yml'.format(TEMPLATE_URL_PREFX)
 VPC_BASTION_TEMPLATE_URL='{}vpc-bastion.cfn.yml'.format(TEMPLATE_URL_PREFX)
 
@@ -78,6 +83,35 @@ def create_bucket(client, name, region):
         client.create_bucket(Bucket=name, ACL='public-read')
     else:
         client.create_bucket(Bucket=name, ACL='public-read', CreateBucketConfiguration={ 'LocationConstraint': region })
+
+def fargate_cleanup(session, config, stack_id, region):
+    """ Empty codepipeline bucket and ecr repository before fargate stack deletion 
+    """
+
+    # Get fargate stack information
+    cfn_client =  session.client('cloudformation', region_name=region, config=config)
+    cfn_stack = cfn_client.describe_stacks(StackName=stack_id)['Stacks'][0]
+    fargate_stack = None
+    for output in cfn_stack['Outputs']:
+        if output['OutputKey'] == 'FargateStackName':
+            fargate_stack = output
+
+    # Get s3 bucket and ecr repository name.
+    s3_bucket_name = cfn_client.describe_stack_resource(StackName=fargate_stack['OutputValue'],LogicalResourceId='CodePipelineArtifactBucket')['StackResourceDetail']['PhysicalResourceId']
+    ecr_repository = cfn_client.describe_stack_resource(StackName=fargate_stack['OutputValue'],LogicalResourceId='EcrDockerRepository')['StackResourceDetail']['PhysicalResourceId']
+    
+    # Delete all objects in s3 bucket.
+    s3_client = session.client('s3', region_name=region, config=config)
+    all_objs = s3_client.list_objects_v2(Bucket=s3_bucket_name)
+    for obj in all_objs['Contents']:
+        s3_client.delete_object(Bucket=s3_bucket_name, Key=obj['Key'])
+
+    # Empty ecr repository
+    ecr_client = session.client('ecr', region_name=region, config=config)
+    ecr_images = ecr_client.list_images(repositoryName=ecr_repository)['imageIds']
+    
+    if(len(ecr_images) > 0):
+        ecr_client.batch_delete_image(repositoryName=ecr_repository, imageIds=ecr_images)
 
 def update_sample_app(client, app_bucket_name, source_bucket_name, app_key):
     """ Copy a sample app from the central bucket to the region where the stack is being created
@@ -174,6 +208,52 @@ def create_vpc_bastion_stack(client, stack_name, azs, environment, ssh_key):
     ]
     return create_stack(client, stack_name, VPC_BASTION_TEMPLATE_URL, parameters)
 
+def create_vpc_fargate(client, stack_name, azs, environment, ssh_key, github, alarms): 
+    """ Create the fargate stack and return the stack id
+    """
+    parameters = [
+        { 'ParameterKey': 'EnvironmentName', 'ParameterValue': environment },
+        { 'ParameterKey': 'AvailabilityZone1', 'ParameterValue': azs[0] },
+        { 'ParameterKey': 'AvailabilityZone2', 'ParameterValue': azs[1] },
+        { 'ParameterKey': 'KeyName', 'ParameterValue': ssh_key },
+        { 'ParameterKey': 'TemplateBucket', 'ParameterValue': TEMPLATE_BUCKET},
+        { 'ParameterKey': 'GitHubUser', 'ParameterValue': github['user']},
+        { 'ParameterKey': 'GitHubToken', 'ParameterValue': github['token']},
+        { 'ParameterKey': 'GitHubSourceRepo', 'ParameterValue': github['repo']},
+    ]
+
+    if alarms:
+        parameters.append({ 'ParameterKey': 'EnableLBAlarm', 'ParameterValue': 'true' })
+
+    return create_stack(client, stack_name, FARGATE_TEMPLATE_URL, parameters)
+
+def create_vpc_fargate_db(client, stack_name, azs, environment, ssh_key, github, lb_alarm, db_engine, db_alarm, enhanced_alarms): 
+    """ Create the fargate stack and return the stack id
+    """
+    parameters = [
+        { 'ParameterKey': 'EnvironmentName', 'ParameterValue': environment },
+        { 'ParameterKey': 'AvailabilityZone1', 'ParameterValue': azs[0] },
+        { 'ParameterKey': 'AvailabilityZone2', 'ParameterValue': azs[1] },
+        { 'ParameterKey': 'KeyName', 'ParameterValue': ssh_key },
+        { 'ParameterKey': 'TemplateBucket', 'ParameterValue': TEMPLATE_BUCKET},
+        { 'ParameterKey': 'GitHubUser', 'ParameterValue': github['user']},
+        { 'ParameterKey': 'GitHubToken', 'ParameterValue': github['token']},
+        { 'ParameterKey': 'GitHubSourceRepo', 'ParameterValue': github['repo']},
+        { 'ParameterKey': 'DatabasePassword', 'ParameterValue': 'startupadmin6' },
+        { 'ParameterKey': 'DatabaseEngine', 'ParameterValue': db_engine },
+    ]
+
+    if lb_alarm:
+        parameters.append({ 'ParameterKey': 'EnableLBAlarm', 'ParameterValue': 'true' })
+
+    if db_alarm:
+        parameters.append({ 'ParameterKey': 'DatabaseEnableAlarms', 'ParameterValue': 'true' })
+        if enhanced_alarms:
+            parameters.append({ 'ParameterKey': 'DatabaseAlarmEvaluationPeriodSeconds', 'ParameterValue': '60' })
+            parameters.append({ 'ParameterKey': 'DatabaseEnhancedMonitoring', 'ParameterValue': 'true' })    
+
+    return create_stack(client, stack_name, FARGATE_RDS_TEMPLATE_URL, parameters)
+
 def wait_for_stacks(stacks, create):
 
     action = 'create' if create else 'delete'
@@ -203,7 +283,7 @@ def wait_for_stacks(stacks, create):
 def ensure_foundation(session, config):
     """ Make sure we have everything we need in place to run the stacks
     """
-    key_pairs=[]
+    key_pairs={}
     for region in get_regions(session.client('ec2', region_name='us-east-1', config=config)):
 
         print 'Ensure key pair in region: {}'.format(region)
@@ -212,7 +292,7 @@ def ensure_foundation(session, config):
         key_name = '{}{}'.format(KEY_PAIR_PREFIX, region)
         if not has_key_pair(ec2_client, key_name):
             key_material = create_key_pair(ec2_client, key_name)
-            key_pairs.append({"Region":region,"KeyName":key_name, "KeyMaterial": key_material})
+            key_pairs[region] = {"KeyName":key_name, "KeyMaterial": key_material}
 
         s3_client = session.client('s3', region_name=region, config=config)
 
@@ -231,20 +311,23 @@ def remove_keypairs(session, config, key_pairs):
     """ Remove key-pairs created as part of test harness
     """
 
-    for key_pair in key_pairs:
+    for region in get_regions(session.client('ec2', region_name='us-east-1', config=config)):
 
-        ec2_client = session.client('ec2', region_name=key_pair['Region'], config=config)
-        delete_key_pair(ec2_client, key_pair['KeyName'])
-        print 'Deleted keypair: {} in region: {}'.format(key_pair['KeyName'],key_pair['Region'])
+        ec2_client = session.client('ec2', region_name=region, config=config)
+        delete_key_pair(ec2_client, key_pairs[region]['KeyName'])
+        print 'Deleted keypair: {} in region: {}'.format(key_pairs[region]['KeyName'],region)
 
-def test_stack(session, config, stack_type):
+def test_stack(session, config, stack_type, github, key_pairs):
     """ Create a specific stack in supported regions, wait for it to create and then delete it
     """
     stacks = []
+    fargate = {}
+    
     for region in get_regions(session.client('ec2', region_name='us-east-1', config=config)):
 
         azs = get_availability_zones(session.client('ec2', region_name=region, config=config), region)
 
+        fargate[region] = False
         # Single AZ regions are not supported e.g., ap-northeast-3
         if azs is None:
             continue
@@ -258,7 +341,7 @@ def test_stack(session, config, stack_type):
         stack_ids = []
         stack['stack_ids'] = stack_ids
 
-        key_name = '{}{}'.format(KEY_PAIR_PREFIX, region)
+        key_name = key_pairs[region]['KeyName']
         app_bucket_name = '{}{}'.format(TEST_APP_BUCKET_PREFIX, region)
 
         if stack_type == 'vpc':
@@ -281,6 +364,46 @@ def test_stack(session, config, stack_type):
             print 'Creating eb stack with enhanced db monitoring in: {}'.format(region)
             stack_ids.append(create_eb_stack(cfn_client, 'test-eb-enhanced-alarm-0', azs, 'dev', key_name, app_bucket_name, TEST_PYTHON_APP_KEY, 'python', 'mysql', True, True))
 
+        if stack_type == 'vpc-bastion-fargate' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack in {}'.format(region)
+            stack_ids.append(create_vpc_fargate(cfn_client,'test-vpc-bastion-fargate-0', azs, 'dev', key_name, github, False))
+
+        if stack_type == 'vpc-bastion-fargate-LB-alarm' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack with LB Alarm enabled in {}'.format(region)
+            stack_ids.append(create_vpc_fargate(cfn_client,'test-vpc-bastion-fargate-LBalarm-0', azs, 'dev', key_name, github, True))
+
+        if stack_type == 'vpc-bastion-fargate-database' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate with DB stack in {}'.format(region)
+            stack_ids.append(create_vpc_fargate_db(cfn_client,'test-vpc-bastion-fargate-db-0', azs, 'dev', key_name, github, False, 'mysql', False, False))
+                                                    
+        if stack_type == 'vpc-bastion-fargate-database-alarm' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack with DB and DB alarm in {}'.format(region)
+            stack_ids.append(create_vpc_fargate_db(cfn_client,'test-vpc-bastion-fargate-dbalarm-0', azs, 'dev', key_name, github, False, 'postgres', True, False))
+
+        if stack_type == 'vpc-bastion-fargate-database-enhanced-alarm' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack with enhanced db monitoring in {}'.format(region)
+            stack_ids.append(create_vpc_fargate_db(cfn_client,'test-vpc-bastion-fargate-db-enhanced-0', azs, 'dev', key_name, github, False, 'mysql', True, True))
+
+        if stack_type == 'vpc-bastion-fargate-database-LBalarm' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack with database and LB alarm enabled in {}'.format(region)
+            stack_ids.append(create_vpc_fargate_db(cfn_client,'test-vpc-bastion-fargate-db-LBalarm-0', azs, 'dev', key_name, github, True, 'mysql', False, False))
+
+        if stack_type == 'vpc-bastion-fargate-database-alarm-LBalarm' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack with db alarm and LB alarm in {}'.format(region)
+            stack_ids.append(create_vpc_fargate_db(cfn_client,'test-vpc-bastion-fargate-dbalarm-LBalarm-0', azs, 'dev', key_name, github, True, 'postgres', True, False))
+
+        if stack_type == 'vpc-bastion-fargate-database-enhanced-alarm-LBalarm' and region == 'us-east-1':
+            fargate['us-east-1'] = True
+            print 'Creating fargate stack with LB alarm and enhanced db monitoring in {}'.format(region)
+            stack_ids.append(create_vpc_fargate_db(cfn_client,'test-vpc-bastion-fargate-db-enhanced-LBalarm-0', azs, 'dev', key_name, github, True, 'mysql', True, True))
+
     time.sleep(5)
 
     # Wait for the stacks to create
@@ -289,7 +412,9 @@ def test_stack(session, config, stack_type):
     print 'Deleting stacks'
     for stack in stacks:
         for stack_id in stack['stack_ids']:
-            print 'Deleting stack: {} - region: {}'.format(stack_id, stack['region'])
+            if fargate[stack['region']]:
+                fargate_cleanup(session, config, stack_id, stack['region'])
+            print 'Deleting stack: {} - region: {}'.format(stack_id, stack['region'])    
             stack['client'].delete_stack(StackName=stack_id)
 
     # Wait for the stacks to delete
@@ -300,8 +425,12 @@ def main():
     """
     print 'Testing stacks'
 
+    github = {}
     config = Config(connect_timeout=60, read_timeout=60)
     session = boto3.Session(profile_name=None if len(sys.argv) < 2 else sys.argv[1])
+    github['user'] = sys.argv[2]
+    github['repo'] = sys.argv[3]
+    github['token'] = sys.argv[4]
     print 'AWS session created'
 
     key_pairs = ensure_foundation(session, config)
@@ -312,10 +441,18 @@ def main():
         'vpc-bastion-eb-database',
         'vpc-bastion-eb-database-alarm',
         'vpc-bastion-eb-database-enhanced-alarm',
+        'vpc-bastion-fargate',
+        'vpc-bastion-fargate-LB-alarm'
+        'vpc-bastion-fargate-database',
+        'vpc-bastion-fargate-database-alarm',
+        'vpc-bastion-fargate-database-enhanced-alarm',
+        'vpc-bastion-fargate-database-LBalarm',
+        'vpc-bastion-fargate-database-alarm-LBalarm',
+        'vpc-bastion-fargate-database-enhanced-alarm-LBalarm',
     ]
 
     for test in tests:
-        test_stack(session, config, test)
+        test_stack(session, config, test, github, key_pairs)
 
     remove_keypairs(session, config, key_pairs)
     #we also need to add code to remove buckets created as part of test harness
