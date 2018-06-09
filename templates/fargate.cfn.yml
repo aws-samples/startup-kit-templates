@@ -75,14 +75,14 @@ Parameters:
     MaxLength: 255
     ConstraintDescription: Value must be between 1 and 255 characters
 
-  GitHubSourceRepo:
+  GitSourceRepo:
     Type: String
-    Description: GitHub source repository - must contain a Dockerfile in the base
+    Description: CodeCommit or GitHub source repository - must contain a Dockerfile in the base
 
-  GitHubBranch:
+  GitBranch:
     Type: String
     Default: master
-    Description: GitHub repository branch to trigger builds
+    Description: CodeCommit or GitHub git repository branch - change triggers a new build
 
   GitHubToken:
     Type: String
@@ -91,7 +91,7 @@ Parameters:
 
   GitHubUser:
     Type: String
-    Description: GitHub username
+    Description: GitHub username or organization - leave blank if using CodeCommit
 
   CodeBuildDockerImage:
     Type: String
@@ -100,7 +100,7 @@ Parameters:
   SeedDockerImage:
     Type: String
     Default: registry.hub.docker.com/library/nginx:1.13
-    Description: The initial image, before the GitHub repo above is deployed. Existing application images in ECR should override this parameter
+    Description: Initial image before CodePipeline is executed. Existing application images in ECR should override this parameter
 
   DefaultContainerCpu:
     Type: Number
@@ -216,15 +216,21 @@ Parameters:
 
 Conditions:
 
-   IsTlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
+  IsTlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
 
-   IsDbStackSet: !Not [ !Equals [ !Ref DatabaseStackName, "" ] ]
+  IsDbStackSet: !Not [ !Equals [ !Ref DatabaseStackName, "" ] ]
 
-   CreateRoute53Record: !And
-     - !Not [ !Equals [ !Ref LoadBalancerDomainName, "" ] ]
-     - !Not [ !Equals [ !Ref HostedZoneName, "" ] ]
+  CreateRoute53Record: !And
+    - !Not [ !Equals [ !Ref LoadBalancerDomainName, "" ] ]
+    - !Not [ !Equals [ !Ref HostedZoneName, "" ] ]
 
-   IsLBAlarmEnabled: !Equals [ !Ref EnableLBAlarm, true ]
+  IsGitHub: !And
+    - !Not [ !Equals [ !Ref GitHubToken, "" ] ]
+    - !Not [ !Equals [ !Ref GitHubUser, "" ] ]
+
+  IsCodeCommit: !Not [ Condition: IsGitHub ]
+
+  IsLBAlarmEnabled: !Equals [ !Ref EnableLBAlarm, true ]
 
 
 Resources:
@@ -310,7 +316,7 @@ Resources:
                   - printf '[{"name":"${ServiceName}","imageUri":"%s"}]' $REPOSITORY_URI:$TAG > build.json
             artifacts:
               files: build.json
-          - ServiceName: !Ref GitHubSourceRepo
+          - ServiceName: !Ref GitSourceRepo
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         Type: LINUX_CONTAINER
@@ -321,9 +327,9 @@ Resources:
           - Name: ENVIRONMENT_NAME
             Value: !Ref EnvironmentName
           - Name: REPOSITORY_NAME
-            Value: !Ref GitHubSourceRepo
+            Value: !Ref GitSourceRepo
           - Name: REPOSITORY_BRANCH
-            Value: !Ref GitHubBranch
+            Value: !Ref GitBranch
       Name: !Ref AWS::StackName
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -352,6 +358,11 @@ Resources:
                   - ecs:UpdateService
                   - codebuild:StartBuild
                   - codebuild:BatchGetBuilds
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:UploadArchive
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:CancelUploadArchive
                   - iam:PassRole
               - Resource: !Sub arn:aws:s3:::${CodePipelineArtifactBucket}/*
                 Effect: Allow
@@ -364,11 +375,74 @@ Resources:
       - CodePipelineArtifactBucket
       - FargateEcsCluster
 
-  # This CodePipeline triggers on a commit to the Git branch passed, builds the Docker image
-  # and then deploys the container in the Fargate Cluster. CodePipeline can support N stages. For
-  # example, you may want to add a stage to test your build and/or container.
-  CodePipeline:
+  # This CodePipeline is used for CodeCommit repos. It triggers on a commit to the Git branch passed,
+  # builds the Docker image and then deploys the container in the Fargate Cluster. CodePipeline can support N stages.
+  # For example, you may want to add a stage to test your build and/or container.
+  CodePipelineCodeCommit:
     Type: AWS::CodePipeline::Pipeline
+    Condition: IsCodeCommit
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: App
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !Ref GitSourceRepo
+                BranchName: !Ref GitBranch
+              OutputArtifacts:
+                - Name: App
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: !Ref FargateEcsCluster
+                ServiceName: !GetAtt DefaultFargateService.Name
+                FileName: build.json
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+    DependsOn:
+      - CodePipelineArtifactBucket
+      - CodeBuildProject
+      - CodePipelineServiceRole
+      - DefaultFargateService
+
+  # This CodePipeline is used for GitHub based repos. It triggers on a commit to the Git branch passed,
+  # builds the Docker image and then deploys the container in the Fargate Cluster. CodePipeline can support N stages.
+  # For example, you may want to add a stage to test your build and/or container.
+  CodePipelineGitHub:
+    Type: AWS::CodePipeline::Pipeline
+    Condition: IsGitHub
     Properties:
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStore:
@@ -385,8 +459,8 @@ Resources:
                 Provider: GitHub
               Configuration:
                 Owner: !Ref GitHubUser
-                Repo: !Ref GitHubSourceRepo
-                Branch: !Ref GitHubBranch
+                Repo: !Ref GitSourceRepo
+                Branch: !Ref GitBranch
                 OAuthToken: !Ref GitHubToken
               OutputArtifacts:
                 - Name: App
@@ -522,9 +596,9 @@ Resources:
       TargetType: ip
       Tags:
       - Key: Repository
-        Value: !Ref GitHubSourceRepo
+        Value: !Ref GitSourceRepo
       - Key: Branch
-        Value: !Ref GitHubBranch
+        Value: !Ref GitBranch
       - Key: Stack
         Value: !Ref AWS::StackName
       - Key: Environment
@@ -535,7 +609,7 @@ Resources:
   DefaultLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /fargate/app/${EnvironmentName}/${GitHubSourceRepo}/${GitHubBranch}
+      LogGroupName: !Sub /fargate/${AWS::StackName}/${GitSourceRepo}/${GitBranch}/${EnvironmentName}
       RetentionInDays: !Ref ContainerLogRetentionInDays
 
   DefaultTaskRole:
@@ -585,7 +659,7 @@ Resources:
       TaskRoleArn: !GetAtt DefaultTaskRole.Arn
       ExecutionRoleArn: !GetAtt DefaultTaskExecutionRole.Arn
       ContainerDefinitions:
-        - Name: !Ref GitHubSourceRepo
+        - Name: !Ref GitSourceRepo
           Image: !Ref SeedDockerImage
           Essential: true
           PortMappings:
@@ -611,7 +685,7 @@ Resources:
             Options:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref DefaultLogGroup
-              awslogs-stream-prefix: !Ref GitHubSourceRepo
+              awslogs-stream-prefix: !Ref GitSourceRepo
     DependsOn:
       - DefaultContainerBucket
       - DefaultLogGroup
@@ -626,7 +700,7 @@ Resources:
       LaunchType: FARGATE
       TaskDefinition: !Ref DefaultFargateTaskDefinition
       LoadBalancers:
-        - ContainerName: !Ref GitHubSourceRepo
+        - ContainerName: !Ref GitSourceRepo
           ContainerPort:
             Fn::ImportValue: !Sub ${NetworkStackName}-AppIngressPort
           TargetGroupArn: !Ref DefaultTargetGroup

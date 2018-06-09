@@ -9,7 +9,7 @@ Parameters:
 
   TemplateBucket:
     Type: String
-    Default: awslabs-startup-kit-templates-deploy-v3
+    Default: awslabs-startup-kit-templates-deploy-v4
     Description: The template bucket for the CloudFormation templates
 
   # vpc.cfn.yml parameters
@@ -135,23 +135,23 @@ Parameters:
     MaxLength: 255
     ConstraintDescription: Value must be between 1 and 255 characters
 
-  GitHubSourceRepo:
+  GitSourceRepo:
     Type: String
-    Description: GitHub source repository - must contain a Dockerfile in the base
+    Description: CodeCommit or GitHub source repository - must contain a Dockerfile in the base
 
-  GitHubBranch:
+  GitBranch:
     Type: String
     Default: master
-    Description: GitHub repository branch to trigger builds
+    Description: CodeCommit or GitHub git repository branch - change triggers a new build
 
   GitHubToken:
     Type: String
     NoEcho: true
-    Description: "GitHub API token - see: https://github.com/blog/1509-personal-api-tokens"
+    Description: "GitHub API token - leave blank if using CodeCommit - see: https://github.com/blog/1509-personal-api-tokens"
 
   GitHubUser:
     Type: String
-    Description: GitHub username
+    Description: GitHub username or organization - leave blank if using CodeCommit
 
   CodeBuildDockerImage:
     Type: String
@@ -160,7 +160,7 @@ Parameters:
   SeedDockerImage:
     Type: String
     Default: registry.hub.docker.com/library/nginx:1.13
-    Description: The initial image, before the GitHub repo above is deployed. Existing application images in ECR should override this parameter
+    Description: Initial image before CodePipeline is executed. Existing application images in ECR should override this parameter
 
   DefaultContainerCpu:
     Type: Number
@@ -469,10 +469,10 @@ Metadata:
         Parameters:
           - CodeBuildDockerImage
           - SeedDockerImage
+          - GitSourceRepo
+          - GitBranch
           - GitHubUser
           - GitHubToken
-          - GitHubSourceRepo
-          - GitHubBranch
       - Label:
           default: Elastic Container Registry
         Parameters:
@@ -505,10 +505,10 @@ Metadata:
         default: Tagged Images Max
       DaysToRetainUntaggedContainerImages:
         default: Untagged Images
-      GitHubSourceRepo:
-        default: GitHub Repo
-      GitHubBranch:
-        default: GitHub Branch
+      GitSourceRepo:
+        default: Git Repo
+      GitBranch:
+        default: Git Branch
       GitHubUser:
         default: GitHub User
       GitHubToken:
@@ -676,8 +676,8 @@ Resources:
         AppProtocol: !Ref AppProtocol
         SSLCertificateArn: !Ref SSLCertificateArn
         HealthCheckPath: !Ref HealthCheckPath
-        GitHubSourceRepo: !Ref GitHubSourceRepo
-        GitHubBranch: !Ref GitHubBranch
+        GitSourceRepo: !Ref GitSourceRepo
+        GitBranch: !Ref GitBranch
         GitHubToken: !Ref GitHubToken
         GitHubUser: !Ref GitHubUser
         CodeBuildDockerImage: !Ref CodeBuildDockerImage
