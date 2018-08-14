@@ -27,7 +27,7 @@ If you haven't already done so you first need to:
 ## Creating stacks
 Use the AWS [CloudFormation Console](https://console.aws.amazon.com/cloudformation/home) to run the templates. Click the "Create Stack" button in the upper left corner of the console, then under "Choose a template", select "Upload a template to Amazon S3" and click "Browse" to find your local fork of this repository and choose the template you want to run.
 
-To launch stacks directly directly from this README see the [table below](#launch-stack).
+To launch stacks directly directly from this README see the [table below](#launching-modular-stacks).
 
 
 ## The templates
