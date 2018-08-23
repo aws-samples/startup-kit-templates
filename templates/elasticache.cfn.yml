@@ -28,6 +28,7 @@ Parameters:
   ClusterName:
     Description: Custom name of the cluster. Auto generated if you don't supply your own.
     Type: String
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
     
   CacheNodeType:
     Description: Cache node instance class, e.g. cache.t2.micro(free tier). See https://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/CacheNodes.SelectSize.html
@@ -107,6 +108,7 @@ Resources:
       AutoMinorVersionUpgrade: !Ref AutoMinorVersionUpgrade
       Engine: !Ref CacheEngine
       CacheNodeType: !Ref CacheNodeType
+      ClusterName : !Ref ClusterName
       NumCacheNodes: !If [ IsRedis, 1, !Ref CacheNodeCount]
       CacheSubnetGroupName: !Ref SubnetGroup
       VpcSecurityGroupIds:

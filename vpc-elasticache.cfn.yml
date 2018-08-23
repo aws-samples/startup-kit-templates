@@ -1,0 +1,181 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+
+Description: VPC + Elasticache
+
+
+Parameters:
+
+  TemplateBucket:
+    Type: String
+    Default: awslabs-startup-kit-templates-deploy-v3
+    Description: The template bucket for the CloudFormation templates
+
+  # vpc.cfn.yml parameters
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  SSHFrom:
+    Description: Limit SSH access to bastion hosts to a CIDR IP block
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+
+  ELBIngressPort:
+    Description: The ELB ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  AppIngressPort:
+    Description: The application ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  # elasticache.cfn.yml parameters
+  ClusterName:
+    Description: Custom name of the cluster. Auto generated if you don't supply your own.
+    Type: String
+
+  CacheNodeType:
+    Description: Cache node instance class, e.g. cache.t2.micro(free tier). See https://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/CacheNodes.SelectSize.html
+    Type: String
+    Default: cache.t2.micro
+    ConstraintDescription: Node instance class not supported
+    AllowedValues:
+      - cache.t2.micro
+      - cache.t2.small
+      - cache.t2.medium
+      - cache.m4.large
+      - cache.m4.xlarge
+      - cache.m4.2xlarge
+      - cache.m4.4xlarge
+      - cache.m4.10xlarge
+      - cache.r4.large
+      - cache.r4.xlarge
+      - cache.r4.2xlarge
+      - cache.r4.4xlarge
+      - cache.r4.8xlarge
+      - cache.r4.16xlarge
+
+  CacheEngine:
+    Description: The underlying cache engine, either Redis or Memcached
+    Type: String
+    Default: redis
+    ConstraintDescription: Node instance class not supported
+    AllowedValues:
+      - redis
+      - memcached
+
+  CacheNodeCount:
+    Description: Number of nodes in the cluster. Only used with memcached engine, for redis this value will be set to 1.
+    Type: Number
+    MinValue: 1
+    MaxValue: 15
+    ConstraintDescription: Node count must be between 1 and 15
+    Default: 1
+
+  AutoMinorVersionUpgrade:
+    Description: Whether or not minor version upgrades to the cache engine should be applied automatically during the maintenance window.
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Environment
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: Region Availability Zones
+        Parameters:
+          - AvailabilityZone1
+          - AvailabilityZone2
+      - Label:
+          default: Ingress Ports
+        Parameters:
+          - ELBIngressPort
+          - AppIngressPort
+    ParameterLabels:
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      ELBIngressPort:
+        default: Load Balancer Port
+      AppIngressPort:
+        default: Application Port
+      SSHFrom:
+        default: Bastion SSH Whitelist
+      TemplateBucket:
+        default: CloudFormation Bucket
+      EnvironmentName:
+        default: Environment
+      SSHFrom:
+        default: SSH Whitelist
+
+Conditions:
+
+   IsProd: !Equals [ !Ref EnvironmentName, prod ]
+
+Resources:
+
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/vpc.cfn.yml
+      Parameters:
+        AvailabilityZone1: !Ref AvailabilityZone1
+        AvailabilityZone2: !Ref AvailabilityZone2
+        SSHFrom: !Ref SSHFrom
+        ELBIngressPort: !Ref ELBIngressPort
+        AppIngressPort: !Ref AppIngressPort
+        SingleNatGateway: !If [ IsProd, false, true ]
+
+  ElastiCacheStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/elasticache.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        ClusterName: !Ref ClusterName
+    DependsOn: VpcStack
+
+Outputs:
+
+  VpcStackName:
+    Value: !GetAtt VpcStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcStackName
+
+  ElastiCacheStackName:
+    Value: !GetAtt ElastiCacheStack.Outputs.ElastiCacheStackName
+    Export:
+      Name: !Sub ${AWS::StackName}-ElastiCacheStackName
