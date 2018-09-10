@@ -15,11 +15,11 @@ Parameters:
 Resources:
 
   #  METRIC FILTERS
-  
+
   LoginLatencyMetricFilter:
     Type: "AWS::Logs::MetricFilter"
-    Properties: 
-      LogGroupName: 
+    Properties:
+      LogGroupName:
         "Fn::Join":
         - ''
         - - '/aws/elasticbeanstalk/'
@@ -27,14 +27,14 @@ Resources:
             "Fn::Sub": "${AppStackName}-EnvironmentName"
           - '/var/log/nodejs/nodejs.log'
       FilterPattern: '[ timestamp, level, message = POST_AUTH_latency, latency ]'
-      MetricTransformations: 
-        - 
+      MetricTransformations:
+        -
           MetricValue: $latency
           MetricNamespace: STARTUP_KIT/API
           MetricName: LOGIN_LATENCY
-          
+
   # ALARMS
-  
+
   LoginFailureAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -51,11 +51,11 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
 
   # NOTIFICATION RESOURCES
-  
+
   StartupKitDevOpsSNSTopic:
     Type: "AWS::SNS::Topic"
-    Properties: 
+    Properties:
       DisplayName: STARTUP_KIT_DEVOPS
       TopicName: STARTUP_KIT_DEVOPS
-        
-        
+
+

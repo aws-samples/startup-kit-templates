@@ -20,8 +20,7 @@ AWSTemplateFormatVersion: 2010-09-09
 # This template is released under Apache Version 2.0, and can be forked, copied, modified,
 # customized, etc. to match your application/system requirements.
 
-Description: Fargate
-
+Description: SASKV5N Fargate
 
 Parameters:
 
@@ -265,6 +264,17 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - ecr:GetAuthorizationToken
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeVpcs
+                  - ec2:CreateNetworkInterfacePermission
               - Resource: !Sub arn:aws:s3:::${CodePipelineArtifactBucket}/*
                 Effect: Allow
                 Action:
@@ -332,6 +342,14 @@ Resources:
             Value: !Ref GitBranch
       Name: !Ref AWS::StackName
       ServiceRole: !Ref CodeBuildServiceRole
+      VpcConfig:
+        VpcId:
+          Fn::ImportValue: !Sub ${NetworkStackName}-VpcID
+        Subnets:
+          - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet1ID
+          - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet2ID
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub ${NetworkStackName}-AppSecurityGroupID
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -883,6 +901,12 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-Name
 
+  EnvironmentName:
+    Description: Environment Name
+    Value: !Ref EnvironmentName
+    Export:
+      Name: !Sub ${AWS::StackName}-EnvironmentName
+
   EcrDockerRepositoryName:
     Value: !Ref EcrDockerRepository
     Export:
@@ -927,6 +951,16 @@ Outputs:
     Value: !If [ CreateRoute53Record, !Ref LoadBalancerDomainName, !GetAtt ApplicationLoadBalancer.DNSName ]
     Export:
       Name: !Sub ${AWS::StackName}-ApplicationLoadBalancerDnsName
+
+  ApplicationLoadBalancerBaseDnsName:
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-ApplicationLoadBalancerBaseDnsName
+
+  ApplicationLoadBalancerCanonicalHostedZoneId:
+    Value: !GetAtt ApplicationLoadBalancer.CanonicalHostedZoneID
+    Export:
+      Name: !Sub ${AWS::StackName}-ApplicationLoadBalancerCanonicalHostedZoneId
 
   ApplicationLoadBalancerName:
     Value: !GetAtt ApplicationLoadBalancer.LoadBalancerName

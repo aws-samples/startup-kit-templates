@@ -2,14 +2,14 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 
-Description: VPC + Bastion + Fargate + Database
+Description: SASKV5 VPC + Bastion + Fargate + Database
 
 
 Parameters:
 
   TemplateBucket:
     Type: String
-    Default: awslabs-startup-kit-templates-deploy-v4
+    Default: awslabs-startup-kit-templates-deploy-v5
     Description: The template bucket for the CloudFormation templates
 
   # vpc.cfn.yml parameters

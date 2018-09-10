@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: VPC
+Description: SASKV5N VPC
 
 # This VPC stack should be created first before any other
 # CloudFormation stacks, such as a bastion stack, database

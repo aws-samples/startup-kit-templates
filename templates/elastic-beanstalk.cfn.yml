@@ -1,9 +1,8 @@
+---
 AWSTemplateFormatVersion: '2010-09-09'
-Description:  AWS Elastic Beanstalk app - built by AWS Startup Kit
+Description:  SASKV5N Elastic Beanstalk
 
 # App stack creation prerequisites:  first create a VPC stack, then a DB stack.
-
-Description: Elastic Beanstalk
 
 Parameters:
 
@@ -130,15 +129,15 @@ Mappings:
   # Maps stack type parameter to solution stack name string
   StackMap:
     node:
-      stackName: 64bit Amazon Linux 2018.03 v4.5.0 running Node.js
+      stackName: 64bit Amazon Linux 2018.03 v4.5.3 running Node.js
     rails:
-      stackName: 64bit Amazon Linux 2018.03 v2.8.0 running Ruby 2.4 (Puma)
+      stackName: 64bit Amazon Linux 2018.03 v2.8.3 running Ruby 2.4 (Puma)
     spring:
-      stackName: 64bit Amazon Linux 2018.03 v3.0.0 running Tomcat 8 Java 8
+      stackName: 64bit Amazon Linux 2018.03 v3.0.3 running Tomcat 8 Java 8
     python:
-      stackName: 64bit Amazon Linux 2018.03 v2.7.0 running Python 2.7
+      stackName: 64bit Amazon Linux 2018.03 v2.7.3 running Python 2.7
     python3:
-      stackName: 64bit Amazon Linux 2018.03 v2.7.0 running Python 3.6
+      stackName: 64bit Amazon Linux 2018.03 v2.7.3 running Python 3.6
 
 Resources:
 

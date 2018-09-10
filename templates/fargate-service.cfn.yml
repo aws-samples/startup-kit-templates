@@ -4,7 +4,7 @@ AWSTemplateFormatVersion: 2010-09-09
 # A CloudFormation template to deploy an additional service to Fargate. This requires an existing
 # cluster deployed by fargate.cfn.yml.
 
-Description: Fargate Service
+Description: SASKV5N Fargate Service
 
 
 Parameters:
@@ -15,15 +15,6 @@ Parameters:
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-
-  EnvironmentName:
-    Type: String
-    Description: Environment name - dev or prod
-    Default: dev
-    AllowedValues:
-      - dev
-      - prod
-    ConstraintDescription: Specify either dev or prod
 
   DatabaseStackName:
     Type: String
@@ -36,6 +27,15 @@ Parameters:
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
 
   RegisterServiceWithAlb:
     Default: true
@@ -57,11 +57,20 @@ Parameters:
 
   ServiceUrlPath:
     Type: String
-    Description: The URL path for the service (e.g., /test)
-    Default: /test
-    MinLength: 1
-    MaxLength: 255
-    ConstraintDescription: Value must be between 1 and 255 characters
+    Description: The optional URL path for the service (e.g., /test). Either an URL path or hostname is required if you register with an ALB
+    Default: ""
+
+  HostedZoneName:
+    Type: String
+    Description: The Amazon Route 53 Hosted Zone Name for the optional load balancer alias record for the service - do not include a period at the end
+    Default: ""
+    AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
+    ConstraintDescription: Please enter a valid Route 53 Hosted Zone Name
+
+  ServiceHostname:
+    Type: String
+    Description: The optional URL path for the service (e.g., foo.bar.com). Either an URL path or hostname is required if you register with an ALB
+    Default: ""
 
   ServiceLBListenerPriority:
     Type: Number
@@ -164,6 +173,22 @@ Parameters:
     Type: Number
     Default: 7
 
+  MaxTaggedContainerImagesToRetain:
+    Type: Number
+    Description: The number of tagged container images to retain before expiring
+    MinValue: 1
+    MaxValue: 100
+    ConstraintDescription: Value must be between 1 and 100
+    Default: 20
+
+  DaysToRetainUntaggedContainerImages:
+    Type: Number
+    Description: The number days to retain untagged container images before expiring
+    MinValue: 1
+    MaxValue: 100
+    ConstraintDescription: Value must be between 1 and 100
+    Default: 7
+
 
 Conditions:
 
@@ -176,6 +201,15 @@ Conditions:
   IsCodeCommit: !Not [ Condition: IsGitHub ]
 
   AddServiceToAlb: !Equals [ !Ref RegisterServiceWithAlb, true ]
+
+  CreateRoute53Record: !And
+    - !Not [ !Equals [ !Ref ServiceHostname, "" ] ]
+    - !Not [ !Equals [ !Ref HostedZoneName, "" ] ]
+    - Condition: AddServiceToAlb
+
+  IsUrlPathRouting: !And
+    - !Not [ !Equals [ !Ref ServiceUrlPath, "" ] ]
+    - Condition: AddServiceToAlb
 
   DoNotAddServiceToAlb: !Equals [ !Ref RegisterServiceWithAlb, false ]
 
@@ -209,14 +243,24 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - ecr:GetAuthorizationToken
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeVpcs
+                  - ec2:CreateNetworkInterfacePermission
               - Resource: !Sub arn:aws:s3:::${CodePipelineArtifactBucket}/*
                 Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-              - Resource:
-                  Fn::ImportValue: !Sub ${FargateStackName}-EcrDockerRepositoryArn
+              - Resource: !GetAtt EcrDockerRepository.Arn
                 Effect: Allow
                 Action:
                   - ecr:GetDownloadUrlForLayer
@@ -269,8 +313,7 @@ Resources:
         Image: !Ref CodeBuildDockerImage
         EnvironmentVariables:
           - Name: REPOSITORY_URI
-            Value:
-              Fn::ImportValue: !Sub ${FargateStackName}-EcrDockerRepositoryUri
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrDockerRepository}
           - Name: ENVIRONMENT_NAME
             Value: !Ref EnvironmentName
           - Name: REPOSITORY_NAME
@@ -279,6 +322,14 @@ Resources:
             Value: !Ref GitBranch
       Name: !Ref AWS::StackName
       ServiceRole: !Ref CodeBuildServiceRole
+      VpcConfig:
+        VpcId:
+          Fn::ImportValue: !Sub ${NetworkStackName}-VpcID
+        Subnets:
+          - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet1ID
+          - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet2ID
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub ${NetworkStackName}-AppSecurityGroupID
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -444,6 +495,44 @@ Resources:
       - CodePipelineArtifactBucket
       - CodeBuildProject
       - CodePipelineServiceRole
+
+  # Simple Amazon ECR Lifecycle Policies to try and reduce storage costs
+  # See: https://docs.aws.amazon.com/AmazonECR/latest/userguide/LifecyclePolicies.html
+  EcrDockerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub
+          - |
+            {
+              "rules": [
+                {
+                  "rulePriority": 1,
+                  "description": "Only keep untagged images for ${DaysToRetainUntaggedContainerImages} days",
+                  "selection": {
+                    "tagStatus": "untagged",
+                    "countType": "sinceImagePushed",
+                    "countUnit": "days",
+                    "countNumber": ${DaysToRetainUntaggedContainerImages}
+                  },
+                  "action": { "type": "expire" }
+                },
+                {
+                  "rulePriority": 2,
+                  "description": "Keep only ${MaxTaggedContainerImagesToRetain} tagged images, expire all others",
+                  "selection": {
+                    "tagStatus": "tagged",
+                    "tagPrefixList": [ "${EnvironmentName}" ],
+                    "countType": "imageCountMoreThan",
+                    "countNumber": ${MaxTaggedContainerImagesToRetain}
+                  },
+                  "action": { "type": "expire" }
+                }
+              ]
+            }
+          - DaysToRetainUntaggedContainerImages: !Ref DaysToRetainUntaggedContainerImages
+            MaxTaggedContainerImagesToRetain: !Ref MaxTaggedContainerImagesToRetain
+            EnvironmentName: !Ref EnvironmentName
 
     # The namespace in Amazon CloudWatch Logs - see https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogsConcepts.html
   LogGroup:
@@ -680,6 +769,19 @@ Resources:
     DependsOn:
       - ScaleInPolicy
 
+  ServiceRoute53Record:
+    Type: AWS::Route53::RecordSet
+    Condition: CreateRoute53Record
+    Properties:
+      Name: !Ref ServiceHostname
+      HostedZoneName: !Sub ${HostedZoneName}.
+      Type: A
+      AliasTarget:
+        HostedZoneId:
+          Fn::ImportValue: !Sub ${FargateStackName}-ApplicationLoadBalancerCanonicalHostedZoneId
+        DNSName:
+          Fn::ImportValue: !Sub ${FargateStackName}-ApplicationLoadBalancerBaseDnsName
+
   # The health checks can be further tuned if your requirements differ
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -719,17 +821,43 @@ Resources:
         Fn::ImportValue: !Sub ${FargateStackName}-ApplicationLoadBalancerListenerArn
       Priority: !Ref ServiceLBListenerPriority
       Conditions:
-        - Field: path-pattern
+        - Field: !If [ IsUrlPathRouting, path-pattern, host-header ]
           Values:
-            - !Ref ServiceUrlPath
+            - !If [ IsUrlPathRouting, !Ref ServiceUrlPath, !Ref ServiceHostname ]
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
     DependsOn:
       - TargetGroup
 
-
 Outputs:
+
+  Name:
+    Description: Fargate Service Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
+
+  EnvironmentName:
+    Description: Environment Name
+    Value: !Ref EnvironmentName
+    Export:
+      Name: !Sub ${AWS::StackName}-EnvironmentName
+
+  EcrDockerRepositoryName:
+    Value: !Ref EcrDockerRepository
+    Export:
+      Name: !Sub ${AWS::StackName}-EcrDockerRepositoryName
+
+  EcrDockerRepositoryArn:
+    Value: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrDockerRepository}
+    Export:
+      Name: !Sub ${AWS::StackName}-EcrDockerRepositoryArn
+
+  EcrDockerRepositoryUri:
+    Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrDockerRepository}
+    Export:
+      Name: !Sub ${AWS::StackName}-EcrDockerRepositoryUri
 
   ServiceArn:
     Value: !If [ AddServiceToAlb, !Ref ServiceWithAlb, !Ref ServiceWithoutAlb ]
