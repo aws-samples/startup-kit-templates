@@ -804,7 +804,7 @@ Resources:
             MetricIntervalUpperBound: 0
     DependsOn: DefaultServiceScalingTarget
 
-  DefaulServiceScaleOutAlarm:
+  DefaultServiceScaleOutAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       EvaluationPeriods: !Ref DefaultServiceScaleEvaluationPeriods
@@ -827,7 +827,7 @@ Resources:
       - DefaultFargateService
       - DefaultServiceScaleOutPolicy
 
-  DefaulServiceScaleInAlarm:
+  DefaultServiceScaleInAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       EvaluationPeriods: !Ref DefaultServiceScaleEvaluationPeriods
