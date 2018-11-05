@@ -292,12 +292,21 @@ Resources:
       FromPort: 22
       DestinationSecurityGroupId: !Ref AppSecurityGroup
 
-  BastionSecurityGroupToDbEgress:
-    Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
+  BastionSecurityGroupToPostgreSqlDbEgress:
+    Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref BastionSecurityGroup
       IpProtocol: tcp
       ToPort: 5432
+      FromPort: 5432
+      DestinationSecurityGroupId: !Ref DbSecurityGroup
+
+  BastionSecurityGroupToPostgreMySqlDbEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref BastionSecurityGroup
+      IpProtocol: tcp
+      ToPort: 3306
       FromPort: 3306
       DestinationSecurityGroupId: !Ref DbSecurityGroup
 
@@ -319,21 +328,39 @@ Resources:
       - Key: Name
         Value: !Sub "${AWS::StackName}-DbSecurityGroup"
 
-  DbSecurityGroupFromBastionIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
+  DbSecurityGroupFromBastionPostgreSqlIngress:
+    Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref DbSecurityGroup
       IpProtocol: tcp
       ToPort: 5432
+      FromPort: 5432
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+  DbSecurityGroupFromBastionMySqlIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      ToPort: 3306
       FromPort: 3306
       SourceSecurityGroupId: !Ref BastionSecurityGroup
 
-  DbSecurityGroupFromAppIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
+  DbSecurityGroupFromAppPostgreSqlIngress:
+    Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref DbSecurityGroup
       IpProtocol: tcp
       ToPort: 5432
+      FromPort: 5432
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  DbSecurityGroupFromAppMySqlIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      ToPort: 3306
       FromPort: 3306
       SourceSecurityGroupId: !Ref AppSecurityGroup
 
