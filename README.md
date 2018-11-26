@@ -3,7 +3,7 @@
 The StartupKit-templates repo contains a collection of AWS [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html) templates intended to help you set up common pieces of AWS infrastructure. Each template defines a [stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacks.html), which is a collection of related resources that can be created, updated, or deleted as a single unit. Templates are available for creating:
 
 - A secure network inside a [VPC](https://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Introduction.html) ([jump](#vpc))
-- A [bastion host](https://en.wikipedia.org/wiki/Bastion_host) to securely access instances inside the VPC ([jump](#bastion-host))
+- AWS Session Manager to securely access inside the VPC ([jump](#aws-session-manager))
 - A deployment environment using [AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/Welcome.html) ([jump](#aws-elastic-beanstalk))
 - A container-based environment using [AWS Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_GetStarted.html) ([jump](#aws-fargate))
 - A relational database using [Amazon RDS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html) ([jump](#amazon-rds))
@@ -76,45 +76,21 @@ Security groups act as firewalls at the instance level, to control inbound and o
 
 </details>
 
-### Bastion Host
+### AWS Session Manager
 
 It is preferable not to ssh into EC2 instances at all, instead monitoring instances by configuring them to send logs to [CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html) or other services, and managing instantiation, configuration, and termination of instances using devops tools.
 
-If you do need to connect directly to instances, it's best (and for instances in a private subnets, a requirement) to use a bastion host, otherwise known as a jump box. A bastion host is an EC2 instance that is publicly accessible, and also has access to private resources, allowing it to function as a secure go-between. You configure your EC2 instances to only accept ssh traffic from the bastion host, then you can ssh into the bastion host, and from there connect to your private resources.
+Session Manager is a fully managed AWS Systems Manager capability that lets you manage your Amazon EC2 instances through an interactive one-click browser-based shell or through the AWS CLI. Session Manager provides secure and auditable instance management without the need to open inbound ports, maintain bastion hosts, or manage SSH keys. Session Manager also makes it easy to comply with corporate policies that require controlled access to instances, strict security practices, and fully auditable logs with instance access details, while still providing end users with simple one-click cross-platform access to your Amazon EC2 instances. You can read more of the [more of the benefits of using Session Manager in the documentation](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-session-manager.html).
 
-EC2 key pairs are required to ssh into any EC2 instance, including bastion hosts. If an attacker gains access to your key pair, they can use it to get into your bastion host, and thus your other resources. In order to prevent this kind of breach the bastion host template supports enabling [Multi-Factor Authentication (MFA)](https://en.wikipedia.org/wiki/Multi-factor_authentication), which is highly recommended
+You can connect to a running instance and issue commands by creating a new session in the [AWS Systems Manager - Session Manager Console](https://console.aws.amazon.com/systems-manager/session-manager/sessions). 
 
-With MFA enabled you use an app like Google Authenticator or Authy to obtain a one-time password, and use this when logging in, in addition to your username and key pair.
+To use the AWS CLI to run session commands, you must be using version 1.16.12 of the CLI, and you must have [installed the Session Manager plugin on your local machine](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html). You'll then need to update the SSM Agent on your instance(s). Use the [AWS Systems Manager - Run Command Console](https://console.aws.amazon.com/systems-manager/run-command) to issue an `AWS-UpdateSSMAgent` on your instance(s). Once the instance is running the latest agent you can then connect to it by running the following command:
 
-You can also set how long CloudWatch logs are retained, and optionally enable Multi-Factor Authentication, among other options.
+```bash
+aws ssm start-session --target i-00ce8e3f5ccb87c6a
+```
 
-Creating a Bastion Host stack requires you to have first created a [VPC](#vpc) stack, and to enter the name of the VPC stack as the NetworkStackName parameter.
-
-After the bastion stack has been created, you can log into the [EC2 section of the console](https://console.aws.amazon.com/ec2), find the EC2 instance containing the stack name, copy its public DNS address, and [ssh into it](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html). Once on the bastion host you should be able to reach all AWS resources running in the same VPC.
-
-For security and cost optimization it is a best practice to stop (not terminate!) the bastion host when not in use.
-
-See [Enabling Multi-factor authentication on the Bastion Host](docs/bastion-mfa.md) for additional MFA information.
-
-<details>
-	<summary>Resources Created</summary>
-
-- A t2.micro EC2 instance
-- An [Elastic IP Address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html)
-- An [Elastic Network Interface](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html)
-- A [log stream](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-logs-logstream.html) , and an IAM profile, role, and group for use in logging
-- [Cloudwatch alarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html) for:
-- Three login attempts with invalid username occur within one minute
-- Five login attempts with either an invalid key or invalid username occur within five minutes
-
-</details>
-
-<details>
-	<summary>Diagram</summary>
-
-![VPC + Bastion Host](images/vpc_bastion.png "VPC + Bastion Host")
-
-</details>
+Where `i-00ce8e3f5ccb87c6a` is the Instance ID you want to connect to.
 
 ### AWS Elastic Beanstalk
 

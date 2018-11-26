@@ -1,0 +1,514 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+
+Description: SASKV5 VPC + Elastic Beanstalk + Database
+
+
+Parameters:
+
+  TemplateBucket:
+    Type: String
+    Default: awslabs-startup-kit-templates-deploy-v5
+    Description: The template bucket for the CloudFormation templates
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
+
+  # vpc.cfn.yml parameters
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  ELBIngressPort:
+    Description: The ELB ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  AppIngressPort:
+    Description: The application ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  LogRetentionInDays:
+    Description: Number of days you would like your CloudWatch Logs to be retained
+    Type: Number
+    Default: 90
+
+  # elastic-beanstalk.cfn.yml parameters
+  StackType:
+    Description: node, rails, python, python3 or spring.
+    Type: String
+    Default: python
+    AllowedValues:
+      - node
+      - rails
+      - spring
+      - python
+      - python3
+    ConstraintDescription: Specify node, rails, python, python3 or spring.
+
+  AppS3Bucket:
+    Description: S3 Bucket containing your application package
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+
+  AppS3Key:
+    Description: S3 Bucket key for your application package
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+
+  EbInstanceType:
+    Description: The instance type for Elastic Beanstalk
+    Type: String
+    Default: t2.small
+    ConstraintDescription: Instance type not supported
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.12xlarge
+      - m5.24xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.16xlarge
+
+  SSLCertificateArn:
+    Description: The optional SSL/TLS certificate ARN
+    Type: String
+    MinLength: 0
+    MaxLength: 2048
+    Default: ""
+
+  AutoScalingMinInstanceCount:
+    Description: Minimum number of EC2 instances for Auto Scaling
+    Type: Number
+    MinValue: 1
+    MaxValue: 20
+    Default: 2
+    ConstraintDescription: Specify a number between 1 - 20
+
+  AutoScalingMaxInstanceCount:
+    Description: Maximum number of EC2 instances for Auto Scaling
+    Type: Number
+    MinValue: 1
+    MaxValue: 20
+    Default: 6
+    ConstraintDescription: Specify a number between 1 - 20
+
+  # aurora.cfn.yml and/or db.cfn.yml parameters
+  DatabaseUser:
+    Default: startupadmin
+    Type: String
+    Description: Database admin account name
+    MinLength: 5
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+
+  DatabasePassword:
+    NoEcho: true
+    Type: String
+    Description: Database admin account password
+    MinLength: 6
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters
+
+  DatabaseName:
+    Default: StartupDB
+    Type: String
+    Description: Database name
+    MinLength: 1
+    MaxLength: 30
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+
+  DatabaseEngine:
+    Default: aurora
+    Type: String
+    Description: Database engines - Aurora MySQL, Aurora PostgreSQL, PostgreSQL, MariaDB and MySQL
+    ConstraintDescription: Choose an engine from the drop down
+    AllowedValues:
+      - aurora
+      - aurora-postgresql
+      - postgres
+      - mariadb
+      - mysql
+
+  EncryptionAtRest:
+    Default: false
+    Type: String
+    Description: The optional flag for encryption at rest (db.t2.small and above)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
+  DatabaseSize:
+    Default: 5
+    Type: String
+    Description: Database storage size in gigabytes (GB) - Not applicable for Aurora
+    MinLength: 1
+    AllowedPattern: "[5-9]|[1-9][0-9]+"
+    ConstraintDescription: Enter a size of at least 5 GB
+
+  DatabaseInstanceClass:
+    Default: db.t2.small
+    Type: String
+    Description: "Database instance class, e.g. db.t2.micro (free tier) - Engine support: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html"
+    ConstraintDescription: DB instance class not supported
+    AllowedValues:
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+      - db.t2.xlarge
+      - db.t2.2xlarge
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m4.4xlarge
+      - db.m4.10xlarge
+      - db.m4.16xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+
+  DatabaseEnableAlarms:
+    Default: false
+    Type: String
+    Description: Set to true to enable (additional charges - https://aws.amazon.com/cloudwatch/pricing/ - aurora, postgres, mariadb, mysql)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
+  DatabaseEnhancedMonitoring:
+    Default: false
+    Type: String
+    Description: The optional flag for enhanced monitoring (additional charges apply - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Monitoring.OS.htm - aurora, postgres, mariadb, mysql)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+
+  DatabaseAlarmMaxCpuPercent:
+    Description: Database CPU % max for alarm (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 80
+    MinValue: 1
+    MaxValue: 99
+    ConstraintDescription: Must be a percentage between 1-99%
+
+  DatabaseAlarmReadLatencyMaxSeconds:
+    Description: Read latency max in seconds for alarm (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 1
+    MinValue: 1
+
+  DatabaseAlarmWriteLatencyMaxSeconds:
+    Description: Write latency max in seconds for alarm (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 1
+    MinValue: 1
+
+  DatabaseAlarmEvaluationPeriods:
+    Description: The number of periods over which data is compared to the specified threshold (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 2
+    MinValue: 2
+    ConstraintDescription: Must be at least one
+
+  DatabaseAlarmEvaluationPeriodSeconds:
+    Description: The time over which the specified statistic is applied. Specify time in seconds, in multiples of 60. Enhanced monitoring must be enabled if less than 500 second (aurora, postgres, mariadb, mysql)
+    Type: Number
+    Default: 300
+    MinValue: 60
+    ConstraintDescription: Must be at least 60 seconds
+
+  # Default is 500 MB
+  DatabaseAlarmMinFreeSpaceInBytes:
+    Default: 524288000
+    Type: Number
+    Description: Number of min free space bytes for alarm (postgres, mariadb, mysql)
+    MinValue: 1
+    ConstraintDescription: A value of one byte or more
+
+  # Default is 200 MB
+  DatabaseAlarmSwapUsageInBytes:
+    Default: 209715200
+    Type: Number
+    Description: Number of swap usage bytes for alarm (postgres, mariadb, mysql)
+    MinValue: 1
+    ConstraintDescription: A value of one byte or more
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Environment
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: Region Availability Zones
+        Parameters:
+          - AvailabilityZone1
+          - AvailabilityZone2
+      - Label:
+          default: Database
+        Parameters:
+          - DatabaseEngine
+          - DatabaseInstanceClass
+          - DatabaseUser
+          - DatabasePassword
+          - DatabaseName
+          - DatabaseSize
+          - EncryptionAtRest
+          - DatabaseEnableAlarms
+          - DatabaseEnhancedMonitoring
+          - DatabaseAlarmMaxCpuPercent
+          - DatabaseAlarmReadLatencyMaxSeconds
+          - DatabaseAlarmWriteLatencyMaxSeconds
+          - DatabaseAlarmEvaluationPeriods
+          - DatabaseAlarmEvaluationPeriodSeconds
+          - DatabaseAlarmMinFreeSpaceInBytes
+          - DatabaseAlarmSwapUsageInBytes
+      - Label:
+          default: Application Global
+        Parameters:
+          - AppIngressPort
+          - AppProtocol
+      - Label:
+          default: Elastic Beanstalk
+        Parameters:
+          - StackType
+          - EbInstanceType
+          - AppS3Bucket
+          - AppS3Key
+          - AutoScalingMinInstanceCount
+          - AutoScalingMaxInstanceCount
+      - Label:
+          default: Load Balancer
+        Parameters:
+          - ELBIngressPort
+          - SSLCertificateArn
+    ParameterLabels:
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      ELBIngressPort:
+        default: Port
+      AppIngressPort:
+        default: Port
+      AppProtocol:
+        default: Protocol
+      LogRetentionInDays:
+        default: Log Retention
+      MFA:
+        default: Multi-Factor
+      TemplateBucket:
+        default: CloudFormation Bucket
+      EnvironmentName:
+        default: Environment
+      SSLCertificateArn:
+        default: SSL Certificate
+      DatabaseUser:
+        default: User
+      DatabasePassword:
+        default: Password
+      DatabaseName:
+        default: Name
+      DatabaseSize:
+        default: Size
+      DatabaseEngine:
+        default: Engine
+      EncryptionAtRest:
+        default: Encryption at Rest
+      DatabaseInstanceClass:
+        default: Instance Type
+      StackType:
+        default: Stack Type
+      EbInstanceType:
+        default: Instance Type
+      AppS3Bucket:
+        default: App S3 Bucket
+      AppS3Key:
+        default: App S3 Key
+      AutoScalingMinInstanceCount:
+        default: Min Instances
+      AutoScalingMaxInstanceCount:
+        default: Max Instances
+      DatabaseAlarmMaxCpuPercent:
+        default: Alarm Max CPU%
+      DatabaseAlarmReadLatencyMaxSeconds:
+        default: Alarm Max Read Latency
+      DatabaseAlarmWriteLatencyMaxSeconds:
+        default: Alarm Max Write Latency
+      DatabaseAlarmEvaluationPeriods:
+        default: Alarm Period(s)
+      DatabaseAlarmEvaluationPeriodSeconds:
+        default: Alarm Period Seconds
+      DatabaseEnhancedMonitoring:
+        default: Enhanced Monitoring
+      DatabaseAlarmMinFreeSpaceInBytes:
+        default: Min Free Space
+      DatabaseAlarmSwapUsageInBytes:
+        default: Max Swap Use
+      DatabaseEnableAlarms:
+        default: Enable Alarms
+
+Conditions:
+
+   IsProd: !Equals [ !Ref EnvironmentName, prod ]
+
+   IsAurora: !Or [ !Equals [ !Ref DatabaseEngine, aurora ], !Equals [ !Ref DatabaseEngine, aurora-postgresql ] ]
+
+   IsNotAurora: !Not [ Condition: IsAurora ]
+
+Resources:
+
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/vpc.cfn.yml
+      Parameters:
+        AvailabilityZone1: !Ref AvailabilityZone1
+        AvailabilityZone2: !Ref AvailabilityZone2
+        ELBIngressPort: !Ref ELBIngressPort
+        AppIngressPort: !Ref AppIngressPort
+        SingleNatGateway: !If [ IsProd, false, true ]
+
+  AuroraStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsAurora
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/aurora.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        EnvironmentName: !Ref EnvironmentName
+        DatabaseEngine: !Ref DatabaseEngine
+        DatabaseInstanceClass: !Ref DatabaseInstanceClass
+        DatabaseUser: !Ref DatabaseUser
+        DatabasePassword: !Ref DatabasePassword
+        DatabaseName: !Ref DatabaseName
+        EncryptionAtRest: !Ref EncryptionAtRest
+        EnableAlarms: !Ref DatabaseEnableAlarms
+        EnhancedMonitoring: !Ref DatabaseEnhancedMonitoring
+        DatabaseAlarmMaxCpuPercent: !Ref DatabaseAlarmMaxCpuPercent
+        DatabaseAlarmReadLatencyMaxSeconds: !Ref DatabaseAlarmReadLatencyMaxSeconds
+        DatabaseAlarmWriteLatencyMaxSeconds: !Ref DatabaseAlarmWriteLatencyMaxSeconds
+        DatabaseAlarmEvaluationPeriods: !Ref DatabaseAlarmEvaluationPeriods
+        DatabaseAlarmEvaluationPeriodSeconds: !Ref DatabaseAlarmEvaluationPeriodSeconds
+    DependsOn: VpcStack
+
+  RdsStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsNotAurora
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/db.cfn.yml
+      Parameters:
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        EnvironmentName: !Ref EnvironmentName
+        DatabaseEngine: !Ref DatabaseEngine
+        DatabaseInstanceClass: !Ref DatabaseInstanceClass
+        DatabaseUser: !Ref DatabaseUser
+        DatabasePassword: !Ref DatabasePassword
+        DatabaseName: !Ref DatabaseName
+        EncryptionAtRest: !Ref EncryptionAtRest
+        DatabaseSize: !Ref DatabaseSize
+        EnableAlarms: !Ref DatabaseEnableAlarms
+        EnhancedMonitoring: !Ref DatabaseEnhancedMonitoring
+        DatabaseAlarmMaxCpuPercent: !Ref DatabaseAlarmMaxCpuPercent
+        DatabaseAlarmReadLatencyMaxSeconds: !Ref DatabaseAlarmReadLatencyMaxSeconds
+        DatabaseAlarmWriteLatencyMaxSeconds: !Ref DatabaseAlarmWriteLatencyMaxSeconds
+        DatabaseAlarmEvaluationPeriods: !Ref DatabaseAlarmEvaluationPeriods
+        DatabaseAlarmEvaluationPeriodSeconds: !Ref DatabaseAlarmEvaluationPeriodSeconds
+        DatabaseAlarmMinFreeSpaceInBytes: !Ref DatabaseAlarmMinFreeSpaceInBytes
+        DatabaseAlarmSwapUsageInBytes: !Ref DatabaseAlarmSwapUsageInBytes
+    DependsOn: VpcStack
+
+  ElasticBeanstalkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/elastic-beanstalk.cfn.yml
+      Parameters:
+        ApplicationName: !Ref AWS::StackName
+        StackType: !Ref StackType
+        EnvironmentName: !Ref EnvironmentName
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        DatabaseStackName: !If [ IsAurora, !GetAtt AuroraStack.Outputs.Name, !GetAtt RdsStack.Outputs.Name ]
+        DatabaseName: !Ref DatabaseName
+        DatabasePassword: !Ref DatabasePassword
+        AppS3Bucket: !Ref AppS3Bucket
+        AppS3Key: !Ref AppS3Key
+        DevInstanceType: !Ref EbInstanceType
+        ProdInstanceType: !Ref EbInstanceType
+        SSLCertificateArn: !Ref SSLCertificateArn
+        AutoScalingMinInstanceCount: !Ref AutoScalingMinInstanceCount
+        AutoScalingMaxInstanceCount: !Ref AutoScalingMaxInstanceCount
+
+
+Outputs:
+
+  Name:
+    Description: Aurora Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
+
+  VpcStackName:
+    Value: !GetAtt VpcStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcStackName
+
+  ElasticBeanstalkStackName:
+    Value: !GetAtt ElasticBeanstalkStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticBeanstalkStack
+
+  AuroraStackName:
+    Value: !GetAtt AuroraStack.Outputs.Name
+    Condition: IsAurora
+    Export:
+      Name: !Sub ${AWS::StackName}-DatabaseStackName
+
+  RdsStackName:
+    Value: !GetAtt RdsStack.Outputs.Name
+    Condition: IsNotAurora
+    Export:
+      Name: !Sub ${AWS::StackName}-DatabaseStackName
+
