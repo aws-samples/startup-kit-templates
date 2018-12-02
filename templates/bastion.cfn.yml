@@ -19,7 +19,8 @@ Parameters:
 
   KeyName:
     Description: EC2 key pair name for bastion host SSH access
-    Type: AWS::EC2::KeyPair::KeyName
+    Type: String
+    Default: ''
 
   LogRetentionInDays:
     Description: Number of days you would like your CloudWatch Logs to be retained
@@ -35,6 +36,9 @@ Parameters:
     AllowedValues:
       - true
       - false
+
+Conditions:
+  HasKeyName: !Not [ !Equals [ !Ref KeyName, '' ]]
 
 Mappings:
 
@@ -211,7 +215,7 @@ Resources:
 
     Properties:
       InstanceType: t2.micro
-      KeyName: !Ref KeyName
+      KeyName: !If [ HasKeyName, !Ref KeyName, !Ref "AWS::NoValue" ]
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref BastionNetworkInterface
           DeviceIndex: 0

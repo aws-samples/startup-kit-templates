@@ -4,8 +4,8 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: SASKV5N VPC
 
 # This VPC stack should be created first before any other
-# CloudFormation stacks, such as a bastion stack, database
-# stack and application stack
+# CloudFormation stacks, such as a database stack 
+# and application stack
 Parameters:
 
   AvailabilityZone1:
@@ -17,6 +17,14 @@ Parameters:
     Description: The second availability zone in the region
     Type: AWS::EC2::AvailabilityZone::Name
     ConstraintDescription: Must be a valid availability zone
+
+  Bastion:
+    Description: Flag on whether to allow SSH access to instances via bastion instead of Session Manager
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
 
   SSHFrom:
     Description: Limit SSH access to bastion hosts to a CIDR IP block
@@ -76,6 +84,7 @@ Metadata:
 Conditions:
   CreateSingleNatGateway: !Equals [ !Ref SingleNatGateway, true ]
   CreateMultipleNatGateways: !Not [ Condition: CreateSingleNatGateway ]
+  CreateBastion: !Equals [ !Ref Bastion, true ]
 
 Mappings:
 
@@ -230,10 +239,6 @@ Resources:
         IpProtocol: tcp
         ToPort: !Ref AppIngressPort
         FromPort: !Ref AppIngressPort
-      - SourceSecurityGroupId: !Ref BastionSecurityGroup
-        IpProtocol: tcp
-        ToPort: 22
-        FromPort: 22
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-AppSecurityGroup"
@@ -248,6 +253,7 @@ Resources:
       SourceSecurityGroupId: !Ref ELBSecurityGroup
 
   AppSecurityGroupFromBastionIngress:
+    Condition: CreateBastion
     Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
     Properties:
       GroupId: !Ref AppSecurityGroup
@@ -257,6 +263,7 @@ Resources:
       SourceSecurityGroupId: !Ref BastionSecurityGroup
 
   BastionSecurityGroup:
+    Condition: CreateBastion
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable access to the bastion host
@@ -284,6 +291,7 @@ Resources:
         Value: !Sub "${AWS::StackName}-BastionSecurityGroup"
 
   BastionSecurityGroupToAppEgress:
+    Condition: CreateBastion
     Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
     Properties:
       GroupId: !Ref BastionSecurityGroup
@@ -293,6 +301,7 @@ Resources:
       DestinationSecurityGroupId: !Ref AppSecurityGroup
 
   BastionSecurityGroupToDbEgress:
+    Condition: CreateBastion
     Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
     Properties:
       GroupId: !Ref BastionSecurityGroup
@@ -320,6 +329,7 @@ Resources:
         Value: !Sub "${AWS::StackName}-DbSecurityGroup"
 
   DbSecurityGroupFromBastionIngress:
+    Condition: CreateBastion
     Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
     Properties:
       GroupId: !Ref DbSecurityGroup
@@ -482,6 +492,7 @@ Outputs:
 
   BastionSecurityGroup:
     Description: Security group ID for bastion host
+    Condition: CreateBastion
     Value: !GetAtt BastionSecurityGroup.GroupId
     Export:
       Name: !Sub "${AWS::StackName}-BastionGroupID"

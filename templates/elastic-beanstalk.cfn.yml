@@ -43,6 +43,14 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
+  Bastion:
+    Description: Flag on whether to allow SSH access to instances via bastion instead of Session Manager
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
   DatabaseStackName:
     Description: Name of an active CloudFormation stack of database resources
     Type: String
@@ -80,7 +88,8 @@ Parameters:
 
   EC2KeyPairName:
     Description: EC2 key pair name for SSH access
-    Type: AWS::EC2::KeyPair::KeyName
+    Type: String
+    Default: ''
 
   DevInstanceType:
     Description: The instance type for the dev environment
@@ -122,8 +131,11 @@ Parameters:
 Conditions:
 
   CreateProdEnv: !Equals [ !Ref EnvironmentName, prod ]
+  HasKeyName: !Not [ !Equals [ !Ref EC2KeyPairName, '' ]]
 
   TlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
+
+  CreateBastion: !Equals [ !Ref Bastion, true ]
 
 Mappings:
   # Maps stack type parameter to solution stack name string
@@ -131,7 +143,7 @@ Mappings:
     node:
       stackName: 64bit Amazon Linux 2018.03 v4.5.3 running Node.js
     rails:
-      stackName: 64bit Amazon Linux 2018.03 v2.8.3 running Ruby 2.4 (Puma)
+      stackName: 64bit Amazon Linux 2018.03 v2.8.7 running Ruby 2.4 (Puma)
     spring:
       stackName: 64bit Amazon Linux 2018.03 v3.0.3 running Tomcat 8 Java 8
     python:
@@ -213,18 +225,20 @@ Resources:
         Value: !Ref AutoScalingMaxInstanceCount
 
       - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: SSHSourceRestriction
+        Value: !If 
+          - CreateBastion
+          - "Fn::Join":
+            - ','
+            - - 'tcp, 22, 22'
+              - !ImportValue
+                  "Fn::Sub": "${NetworkStackName}-BastionGroupID"
+          - 'tcp, 22, 22, 127.0.0.1/32'
+
+      - Namespace: aws:autoscaling:launchconfiguration
         OptionName: SecurityGroups
         Value:
           Fn::ImportValue: !Sub "${NetworkStackName}-AppSecurityGroupID"
-
-      - Namespace: aws:autoscaling:launchconfiguration
-        OptionName: SSHSourceRestriction
-        Value:
-          "Fn::Join":
-          - ','
-          - - 'tcp, 22, 22'
-            - !ImportValue
-                "Fn::Sub": "${NetworkStackName}-BastionGroupID"
 
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: InstanceType
@@ -236,7 +250,7 @@ Resources:
 
       - Namespace: aws:autoscaling:launchconfiguration
         OptionName: EC2KeyName
-        Value: !Ref EC2KeyPairName
+        Value: !If [ HasKeyName, !Ref EC2KeyPairName, !Ref "AWS::NoValue" ]
 
       - Namespace: aws:autoscaling:updatepolicy:rollingupdate
         OptionName: RollingUpdateEnabled
