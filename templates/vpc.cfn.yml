@@ -236,15 +236,6 @@ Resources:
       FromPort: !Ref AppIngressPort
       SourceSecurityGroupId: !Ref ELBSecurityGroup
 
-  AppSecurityGroupFromBastionIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
-    Properties:
-      GroupId: !Ref AppSecurityGroup
-      IpProtocol: tcp
-      ToPort: 22
-      FromPort: 22
-      SourceSecurityGroupId: !Ref BastionSecurityGroup
-
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -271,15 +262,6 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-BastionSecurityGroup"
-
-  BastionSecurityGroupToAppEgress:
-    Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
-    Properties:
-      GroupId: !Ref BastionSecurityGroup
-      IpProtocol: tcp
-      ToPort: 22
-      FromPort: 22
-      DestinationSecurityGroupId: !Ref AppSecurityGroup
 
   BastionSecurityGroupToPostgreSqlDbEgress:
     Type: AWS::EC2::SecurityGroupEgress
