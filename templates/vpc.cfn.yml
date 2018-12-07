@@ -4,8 +4,8 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: SASKV5N VPC
 
 # This VPC stack should be created first before any other
-# CloudFormation stacks, such as a bastion stack, database
-# stack and application stack
+# CloudFormation stacks, such as a database stack 
+# and application stack
 Parameters:
 
   AvailabilityZone1:
@@ -17,13 +17,6 @@ Parameters:
     Description: The second availability zone in the region
     Type: AWS::EC2::AvailabilityZone::Name
     ConstraintDescription: Must be a valid availability zone
-
-  SSHFrom:
-    Description: Limit SSH access to bastion hosts to a CIDR IP block
-    Type: String
-    MinLength: 9
-    MaxLength: 18
-    Default: 0.0.0.0/0
 
   ELBIngressPort:
     Description: The ELB ingress port used by security groups
@@ -230,10 +223,6 @@ Resources:
         IpProtocol: tcp
         ToPort: !Ref AppIngressPort
         FromPort: !Ref AppIngressPort
-      - SourceSecurityGroupId: !Ref BastionSecurityGroup
-        IpProtocol: tcp
-        ToPort: 22
-        FromPort: 22
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-AppSecurityGroup"
@@ -246,15 +235,6 @@ Resources:
       ToPort: !Ref AppIngressPort
       FromPort: !Ref AppIngressPort
       SourceSecurityGroupId: !Ref ELBSecurityGroup
-
-  AppSecurityGroupFromBastionIngress:
-    Type: AWS::EC2::SecurityGroupIngress  # prevent security group circular references
-    Properties:
-      GroupId: !Ref AppSecurityGroup
-      IpProtocol: tcp
-      ToPort: 22
-      FromPort: 22
-      SourceSecurityGroupId: !Ref BastionSecurityGroup
 
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -282,15 +262,6 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-BastionSecurityGroup"
-
-  BastionSecurityGroupToAppEgress:
-    Type: AWS::EC2::SecurityGroupEgress  # prevent security group circular references
-    Properties:
-      GroupId: !Ref BastionSecurityGroup
-      IpProtocol: tcp
-      ToPort: 22
-      FromPort: 22
-      DestinationSecurityGroupId: !Ref AppSecurityGroup
 
   BastionSecurityGroupToPostgreSqlDbEgress:
     Type: AWS::EC2::SecurityGroupEgress
@@ -363,6 +334,25 @@ Resources:
       ToPort: 3306
       FromPort: 3306
       SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  SSMSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access to the SSM
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-SSMSecurityGroup"
 
   # NAT-related resources
   #
@@ -451,6 +441,86 @@ Resources:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref NatRouteTable2
 
+  S3VPNEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      RouteTableIds: !If [ CreateMultipleNatGateways, [ !Ref NatRouteTable1, !Ref NatRouteTable2 ], [ !Ref NatRouteTable1 ]]
+      ServiceName: !Join
+        - ""
+        - - com.amazonaws.
+          - !Ref "AWS::Region"
+          - .s3
+      VpcEndpointType: Gateway
+
+  EC2Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Join
+        - ""
+        - - com.amazonaws.
+          - !Ref "AWS::Region"
+          - .ec2
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: True
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref SSMSecurityGroup
+
+  EC2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Join
+        - ""
+        - - com.amazonaws.
+          - !Ref "AWS::Region"
+          - .ec2messages
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: True
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref SSMSecurityGroup
+
+  SSMMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Join
+        - ""
+        - - com.amazonaws.
+          - !Ref "AWS::Region"
+          - .ssmmessages
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: True
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref SSMSecurityGroup
+
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Join
+        - ""
+        - - com.amazonaws.
+          - !Ref "AWS::Region"
+          - .ssm
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: True
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref SSMSecurityGroup
+
 Outputs:
 
   Name:
@@ -506,12 +576,6 @@ Outputs:
     Value: !GetAtt AppSecurityGroup.GroupId
     Export:
       Name: !Sub "${AWS::StackName}-AppSecurityGroupID"
-
-  BastionSecurityGroup:
-    Description: Security group ID for bastion host
-    Value: !GetAtt BastionSecurityGroup.GroupId
-    Export:
-      Name: !Sub "${AWS::StackName}-BastionGroupID"
 
   DatabaseSecurityGroup:
     Description: Security group ID for RDS database
