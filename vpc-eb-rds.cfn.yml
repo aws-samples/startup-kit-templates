@@ -431,7 +431,7 @@ Conditions:
 
    IsNotAurora: !Not [ Condition: IsAurora ]
 
-   CreateBastion: !Equals [ !Ref Bastion, true ]
+   CreateBastion: !And [ !Equals [ !Ref Bastion, true ], !Not [ !Equals [ !Ref KeyName, '' ] ] ]
 
 Resources:
 
