@@ -297,7 +297,7 @@ Parameters:
 
   DatabaseSize:
     Default: 5
-    Type: String
+    Type: Number
     Description: Database storage size in gigabytes (GB) - Not applicable for Aurora
     MinLength: 1
     AllowedPattern: "[5-9]|[1-9][0-9]+"
