@@ -96,7 +96,7 @@ Resources:
       Tags:
         -
           Key: Name
-          Value: !Sub "${AWS::StackName}-ElasticCacheSecurityGroup"
+          Value: !Sub "${AWS::StackName}-ElastiCacheSecurityGroup"
 
   SubnetGroup:
     Type: AWS::ElastiCache::SubnetGroup
