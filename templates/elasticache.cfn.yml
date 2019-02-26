@@ -93,6 +93,10 @@ Resources:
           IpProtocol: tcp
           FromPort: !If [ IsRedis, 6379, 11211]
           ToPort: !If [ IsRedis, 6379, 11211]
+      Tags:
+        -
+          Key: Name
+          Value: !Sub "${AWS::StackName}-ElastiCacheSecurityGroup"
 
   SubnetGroup:
     Type: AWS::ElastiCache::SubnetGroup
