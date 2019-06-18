@@ -138,8 +138,6 @@ Metadata:
         default: CloudFormation Bucket
       EnvironmentName:
         default: Environment
-      SSHFrom:
-        default: SSH Whitelist
 
 Conditions:
 

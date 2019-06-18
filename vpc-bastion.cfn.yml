@@ -118,8 +118,6 @@ Metadata:
         default: Log Retention
       MFA:
         default: Multi-Factor
-      SSHFrom:
-        default: SSH Whitelist
 
 
 Conditions:
