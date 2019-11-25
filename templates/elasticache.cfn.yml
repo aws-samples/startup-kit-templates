@@ -78,7 +78,7 @@ Parameters:
 
 Conditions:
 
-  IsRedis: !Equals [ !Ref CacheEngine, redis]
+  IsRedis: !Equals [ !Ref CacheEngine, 'redis']
 
 Resources:
 
@@ -89,13 +89,11 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub ${NetworkStackName}-VpcID
       SecurityGroupIngress:
-        -
-          IpProtocol: tcp
+        - IpProtocol: tcp
           FromPort: !If [ IsRedis, 6379, 11211]
           ToPort: !If [ IsRedis, 6379, 11211]
       Tags:
-        -
-          Key: Name
+        - Key: Name
           Value: !Sub "${AWS::StackName}-ElastiCacheSecurityGroup"
 
   SubnetGroup:
