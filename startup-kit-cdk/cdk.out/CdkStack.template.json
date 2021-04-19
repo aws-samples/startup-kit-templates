@@ -1,0 +1,708 @@
+{
+  "Resources": {
+    "prod14F28259": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/Resource"
+      }
+    },
+    "prodDMZSubnet1SubnetF830078C": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/24",
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "AvailabilityZone": "us-west-2a",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DMZ"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet1/Subnet"
+      }
+    },
+    "prodDMZSubnet1RouteTable7A600607": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet1/RouteTable"
+      }
+    },
+    "prodDMZSubnet1RouteTableAssociationB40C4D69": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDMZSubnet1RouteTable7A600607"
+        },
+        "SubnetId": {
+          "Ref": "prodDMZSubnet1SubnetF830078C"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet1/RouteTableAssociation"
+      }
+    },
+    "prodDMZSubnet1DefaultRoute913AB22E": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDMZSubnet1RouteTable7A600607"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "prodIGW4EB3EDA1"
+        }
+      },
+      "DependsOn": [
+        "prodVPCGWD25AF1C5"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet1/DefaultRoute"
+      }
+    },
+    "prodDMZSubnet1EIPE61B7D10": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet1/EIP"
+      }
+    },
+    "prodDMZSubnet1NATGatewayD19CB6CD": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "prodDMZSubnet1EIPE61B7D10",
+            "AllocationId"
+          ]
+        },
+        "SubnetId": {
+          "Ref": "prodDMZSubnet1SubnetF830078C"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet1/NATGateway"
+      }
+    },
+    "prodDMZSubnet2SubnetCB0F5BD6": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.1.0/24",
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "AvailabilityZone": "us-west-2b",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DMZ"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet2/Subnet"
+      }
+    },
+    "prodDMZSubnet2RouteTable6CC1C0F9": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet2/RouteTable"
+      }
+    },
+    "prodDMZSubnet2RouteTableAssociation95A1857A": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDMZSubnet2RouteTable6CC1C0F9"
+        },
+        "SubnetId": {
+          "Ref": "prodDMZSubnet2SubnetCB0F5BD6"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet2/RouteTableAssociation"
+      }
+    },
+    "prodDMZSubnet2DefaultRoute2380AF0C": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDMZSubnet2RouteTable6CC1C0F9"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "prodIGW4EB3EDA1"
+        }
+      },
+      "DependsOn": [
+        "prodVPCGWD25AF1C5"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet2/DefaultRoute"
+      }
+    },
+    "prodDMZSubnet2EIPDEB7B9CA": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet2/EIP"
+      }
+    },
+    "prodDMZSubnet2NATGateway8D177F64": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "prodDMZSubnet2EIPDEB7B9CA",
+            "AllocationId"
+          ]
+        },
+        "SubnetId": {
+          "Ref": "prodDMZSubnet2SubnetCB0F5BD6"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DMZSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DMZSubnet2/NATGateway"
+      }
+    },
+    "prodAPPSubnet1Subnet7C0442D1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.2.0/24",
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "AvailabilityZone": "us-west-2a",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "APP"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/APPSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet1/Subnet"
+      }
+    },
+    "prodAPPSubnet1RouteTable03145E45": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/APPSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet1/RouteTable"
+      }
+    },
+    "prodAPPSubnet1RouteTableAssociation205E4EDC": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodAPPSubnet1RouteTable03145E45"
+        },
+        "SubnetId": {
+          "Ref": "prodAPPSubnet1Subnet7C0442D1"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet1/RouteTableAssociation"
+      }
+    },
+    "prodAPPSubnet1DefaultRoute64AA00D6": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodAPPSubnet1RouteTable03145E45"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "prodDMZSubnet1NATGatewayD19CB6CD"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet1/DefaultRoute"
+      }
+    },
+    "prodAPPSubnet2SubnetDBD89285": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.3.0/24",
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "AvailabilityZone": "us-west-2b",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "APP"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/APPSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet2/Subnet"
+      }
+    },
+    "prodAPPSubnet2RouteTable12D23ABD": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/APPSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet2/RouteTable"
+      }
+    },
+    "prodAPPSubnet2RouteTableAssociation14A79429": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodAPPSubnet2RouteTable12D23ABD"
+        },
+        "SubnetId": {
+          "Ref": "prodAPPSubnet2SubnetDBD89285"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet2/RouteTableAssociation"
+      }
+    },
+    "prodAPPSubnet2DefaultRoute29B630B3": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodAPPSubnet2RouteTable12D23ABD"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "prodDMZSubnet2NATGateway8D177F64"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/APPSubnet2/DefaultRoute"
+      }
+    },
+    "prodDBSubnet1SubnetC4FDE313": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.4.0/24",
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "AvailabilityZone": "us-west-2a",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DB"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DBSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet1/Subnet"
+      }
+    },
+    "prodDBSubnet1RouteTableD4831D31": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DBSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet1/RouteTable"
+      }
+    },
+    "prodDBSubnet1RouteTableAssociationA2F6B0D8": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDBSubnet1RouteTableD4831D31"
+        },
+        "SubnetId": {
+          "Ref": "prodDBSubnet1SubnetC4FDE313"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet1/RouteTableAssociation"
+      }
+    },
+    "prodDBSubnet1DefaultRouteE43A791B": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDBSubnet1RouteTableD4831D31"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "prodDMZSubnet1NATGatewayD19CB6CD"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet1/DefaultRoute"
+      }
+    },
+    "prodDBSubnet2Subnet647A5208": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.5.0/24",
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "AvailabilityZone": "us-west-2b",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "DB"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DBSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet2/Subnet"
+      }
+    },
+    "prodDBSubnet2RouteTable9A729B7C": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod/DBSubnet2"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet2/RouteTable"
+      }
+    },
+    "prodDBSubnet2RouteTableAssociation0758714A": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDBSubnet2RouteTable9A729B7C"
+        },
+        "SubnetId": {
+          "Ref": "prodDBSubnet2Subnet647A5208"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet2/RouteTableAssociation"
+      }
+    },
+    "prodDBSubnet2DefaultRouteC8B8F235": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "prodDBSubnet2RouteTable9A729B7C"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "prodDMZSubnet2NATGateway8D177F64"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/DBSubnet2/DefaultRoute"
+      }
+    },
+    "prodIGW4EB3EDA1": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/prod/prod"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/IGW"
+      }
+    },
+    "prodVPCGWD25AF1C5": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "prod14F28259"
+        },
+        "InternetGatewayId": {
+          "Ref": "prodIGW4EB3EDA1"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/prod/prod/VPCGW"
+      }
+    },
+    "devDD187C8B": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/dev/dev"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/Resource"
+      }
+    },
+    "devAPPSubnet1Subnet20383687": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/24",
+        "VpcId": {
+          "Ref": "devDD187C8B"
+        },
+        "AvailabilityZone": "us-west-2a",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "APP"
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public"
+          },
+          {
+            "Key": "Name",
+            "Value": "CdkStack/dev/dev/APPSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/APPSubnet1/Subnet"
+      }
+    },
+    "devAPPSubnet1RouteTable7E0985B9": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "devDD187C8B"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/dev/dev/APPSubnet1"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/APPSubnet1/RouteTable"
+      }
+    },
+    "devAPPSubnet1RouteTableAssociation7C964C90": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "devAPPSubnet1RouteTable7E0985B9"
+        },
+        "SubnetId": {
+          "Ref": "devAPPSubnet1Subnet20383687"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/APPSubnet1/RouteTableAssociation"
+      }
+    },
+    "devAPPSubnet1DefaultRoute7446183B": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "devAPPSubnet1RouteTable7E0985B9"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "devIGW885F3AE6"
+        }
+      },
+      "DependsOn": [
+        "devVPCGWAD861A30"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/APPSubnet1/DefaultRoute"
+      }
+    },
+    "devIGW885F3AE6": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CdkStack/dev/dev"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/IGW"
+      }
+    },
+    "devVPCGWAD861A30": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "devDD187C8B"
+        },
+        "InternetGatewayId": {
+          "Ref": "devIGW885F3AE6"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/dev/dev/VPCGW"
+      }
+    },
+    "CDKMetadata": {
+      "Type": "AWS::CDK::Metadata",
+      "Properties": {
+        "Analytics": "v2:deflate64:H4sIAAAAAAAAA0WPQQ+CMAyFf4v3OZGT3jTEGC9mAcN91BonuJmtgxjCf3eL4k79+vra9K35dsOzxU4ObgnXdjWCscjHiiS0rDDakfVArERnvAVkxU3PPLG4hJDzsX5BnNSiYMI3nYLKNxopaolK4wkvsukw6UnbO2dASVJG/80RDicRy1nSURIO8s2EVX3AdPikCW3g2fD95NftKUS5P1HTNDFtrsgfbtWvM57nIffDKbW0XpN6Ii+/9QM/Q1XmEwEAAA=="
+      },
+      "Metadata": {
+        "aws:cdk:path": "CdkStack/CDKMetadata/Default"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+    "accountID": "111111111111",
+    "region": "us-west-2",
+    "emailSubscriber": "YOUR EMAIL ADDRESS",
+    "monthlyBudget": 100,
+    "requiredTags": ["Environment", "Project"]
+}

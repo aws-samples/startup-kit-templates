@@ -1,0 +1,28 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "config:DescribeComplianceByConfigRule",
+                "config:DescribeConfigRules"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "sns:Publish",
+            "Resource": "arn:aws:sns:REGION:ACCOUNTID:AWS_Starup_Check"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "sns:ListTopics",
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "lambda:InvokeFunction",
+            "Resource": "arn:aws:lambda:REGION:ACCOUNTID:function:startup-check-budget"
+        }
+    ]
+}
