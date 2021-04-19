@@ -13,7 +13,7 @@ such is there at least one monthly cost budget set on the account.
 The application also tag all the created resources with "Environment=production" & "Project=startup-checks" tags and 
 also set a general monthly cost budget (check the installation section for more details).
 
-![Architecture](/resources/architecture.png)
+![Architecture](resources/architecture.png)
 
 
 ## Installation
