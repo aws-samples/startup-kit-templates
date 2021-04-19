@@ -33,3 +33,7 @@ Desktop.ini
 $RECYCLE.BIN/
 Thumbs.db
 ehthumbs.db
+
+**/node_modules
+.cdk.staging
+**/cdk.out
