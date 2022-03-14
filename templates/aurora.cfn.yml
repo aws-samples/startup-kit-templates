@@ -3,7 +3,7 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Description: SASKV5N Aurora
 
-# Create the Aurora MySQL or PostgreSQL database(s). Currently, this template only supports alarms for Aurora MySQL.
+# Create thehskjHSkhskjhksjHKHSKJ Aurora MySQL or PostgreSQL database(s). Currently, this template only supports alarms for Aurora MySQL.
 
 Parameters:
 

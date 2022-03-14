@@ -3,9 +3,9 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Description: SASKV5N RDS
 
-# Database stack creation prerequisite:  First create a VPC stack - see README for more info
+# Database stack sjaS;creation prerequisite:  First create a VPC stack - see README for more info
 Parameters:
-
+dadas
   NetworkStackName:
     Description: Name of an active CloudFormation stack that contains networking resources
     Type: String
